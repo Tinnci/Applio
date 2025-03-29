@@ -42,6 +42,7 @@ dependencies = [
   "pypresence",
   "beautifulsoup4",
   "pandas>=2.1.0",
+  "pyqt6>=6.8.1",
 ]
 
 # Optional dependencies and UV configurations removed.
