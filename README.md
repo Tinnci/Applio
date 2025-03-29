@@ -52,19 +52,28 @@ By using Applio, you accept full responsibility for adhering to these terms. App
 
 ### 1. Installation
 
+This project now uses `uv` for environment management. Ensure you have Python 3.10+ installed.
+
 Run the installation script based on your operating system:
 
 - **Windows:** Double-click `run-install.bat`.
-- **Linux/macOS:** Execute `run-install.sh`.
+  - The script will check if `uv` is installed (and attempt to install it via pip if not).
+  - You will be prompted to select a PyTorch backend (CPU, CUDA 11.8, CUDA 12.1, etc.).
+  - `uv` will create a `.venv` virtual environment and install all necessary dependencies based on your selection.
+- **Linux/macOS:** Execute `chmod +x run-install.sh && ./run-install.sh`.
+  - The script will check if `uv` is installed (and attempt to install it via pip if not).
+  - You will be prompted to select a PyTorch backend.
+  - `uv` will create a `.venv` virtual environment and install dependencies.
+  - The script may also attempt to install system dependencies like `ffmpeg` and `faiss` (on macOS).
 
 ### 2. Running Applio
 
-Start Applio using:
+Once installation is complete, start Applio using the corresponding script for your OS:
 
 - **Windows:** Double-click `run-applio.bat`.
-- **Linux/macOS:** Run `run-applio.sh`.
+- **Linux/macOS:** Run `./run-applio.sh`.
 
-This launches the Gradio interface in your default browser.
+These scripts will automatically activate the `.venv` virtual environment and launch the Gradio interface in your default browser.
 
 ### 3. Optional: TensorBoard Monitoring
 

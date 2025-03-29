@@ -1,0 +1,39 @@
+Metadata-Version: 2.4
+Name: applio
+Version: 0.1.0
+Summary: A simple, high-quality voice conversion tool, focused on ease of use and performance.
+Requires-Python: >=3.10
+License-File: LICENSE
+Requires-Dist: pip>=23.3; sys_platform == "darwin"
+Requires-Dist: wheel; sys_platform == "darwin"
+Requires-Dist: PyYAML
+Requires-Dist: numpy==1.23.5
+Requires-Dist: requests<2.32.0,>=2.31.0
+Requires-Dist: tqdm
+Requires-Dist: wget
+Requires-Dist: ffmpeg-python>=0.2.0
+Requires-Dist: faiss-cpu==1.7.3
+Requires-Dist: librosa==0.9.2
+Requires-Dist: scipy==1.11.1
+Requires-Dist: soundfile==0.12.1
+Requires-Dist: noisereduce
+Requires-Dist: pedalboard
+Requires-Dist: stftpitchshift
+Requires-Dist: soxr
+Requires-Dist: omegaconf>=2.0.6; sys_platform == "darwin"
+Requires-Dist: numba; sys_platform == "linux"
+Requires-Dist: numba==0.57.0; sys_platform == "darwin" or sys_platform == "win32"
+Requires-Dist: torchcrepe==0.0.23
+Requires-Dist: torchfcpe
+Requires-Dist: einops
+Requires-Dist: transformers==4.44.2
+Requires-Dist: matplotlib==3.7.2
+Requires-Dist: tensorboard
+Requires-Dist: gradio==5.14.0
+Requires-Dist: certifi>=2023.07.22; sys_platform == "darwin"
+Requires-Dist: antlr4-python3-runtime==4.8; sys_platform == "darwin"
+Requires-Dist: tensorboardX
+Requires-Dist: edge-tts==6.1.9
+Requires-Dist: pypresence
+Requires-Dist: beautifulsoup4
+Dynamic: license-file
