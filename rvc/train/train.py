@@ -1,5 +1,6 @@
 import os
 import sys
+import signal # Added import
 
 os.environ["USE_LIBUV"] = "0" if sys.platform == "win32" else "1"
 import glob
@@ -115,6 +116,13 @@ import logging
 
 logging.getLogger("torch").setLevel(logging.ERROR)
 
+# Cancellation Handling Globals
+_is_cancelled = False
+
+def signal_handler(sig, frame):
+    global _is_cancelled
+    print(f'>>> Signal {sig} received in training process, requesting cancellation...')
+    _is_cancelled = True
 
 class EpochRecorder:
     """
@@ -337,6 +345,14 @@ def run(
         world_size=n_gpus if device.type == "cuda" else 1,
         rank=rank if device.type == "cuda" else 0,
     )
+
+    # Register signal handler
+    print(f"Rank {rank}: Registering signal handler...")
+    signal.signal(signal.SIGINT, signal_handler)
+    try:
+        signal.signal(signal.SIGTERM, signal_handler)
+    except AttributeError: # SIGTERM not on Windows
+        pass
 
     torch.manual_seed(config.train.seed)
 
@@ -642,6 +658,11 @@ def train_and_evaluate(
     epoch_recorder = EpochRecorder()
     with tqdm(total=len(train_loader), leave=False) as pbar:
         for batch_idx, info in data_iterator:
+            # <<< CHECK CANCELLATION HERE >>>
+            if _is_cancelled:
+                print(f"Rank {rank}: Cancellation detected at batch {batch_idx}, epoch {epoch}. Exiting training loop.")
+                sys.exit(1) # Exit this specific training process
+
             if device.type == "cuda" and not cache_data_in_gpu:
                 info = [tensor.cuda(device_id, non_blocking=True) for tensor in info]
             elif device.type != "cuda":

@@ -60,6 +60,12 @@ class VoiceConverter:
         self.n_spk = None  # Number of speakers in the model
         self.use_f0 = None  # Whether the model uses F0
         self.loaded_model = None
+        self._is_cancelled = False # Cancellation flag
+
+    def request_cancellation(self):
+        """Sets the cancellation flag."""
+        print(">>> Cancellation requested for VoiceConverter instance.")
+        self._is_cancelled = True
 
     def load_hubert(self, embedder_model: str, embedder_model_custom: str = None):
         """
@@ -242,16 +248,19 @@ class VoiceConverter:
             sid (int, optional): Speaker ID. Default is 0.
             **kwargs: Additional keyword arguments.
         """
+        self._is_cancelled = False # Reset cancellation flag at start
         if not model_path:
             print("No model path provided. Aborting conversion.")
             return
 
+        if self._is_cancelled: print(">>> Inference cancelled before get_vc."); return
         self.get_vc(model_path, sid)
 
         try:
             start_time = time.time()
             print(f"Converting audio '{audio_input_path}'...")
 
+            if self._is_cancelled: print(">>> Inference cancelled before load_audio_infer."); return
             audio = load_audio_infer(
                 audio_input_path,
                 16000,
@@ -266,6 +275,7 @@ class VoiceConverter:
                 self.load_hubert(embedder_model, embedder_model_custom)
                 self.last_embedder_model = embedder_model
 
+            if self._is_cancelled: print(">>> Inference cancelled before file_index setup."); return
             file_index = (
                 index_path.strip()
                 .strip('"')
@@ -286,7 +296,11 @@ class VoiceConverter:
                 chunks.append(audio)
 
             converted_chunks = []
+            if self._is_cancelled: print(">>> Inference cancelled before chunk loop."); return
             for c in chunks:
+                # Check cancellation inside loop
+                if self._is_cancelled: print(">>> Inference cancelled inside chunk loop."); break # Exit loop if cancelled
+
                 audio_opt = self.vc.pipeline(
                     model=self.hubert_model,
                     net_g=self.net_g,
@@ -309,14 +323,19 @@ class VoiceConverter:
                 if split_audio:
                     print(f"Converted audio chunk {len(converted_chunks)}")
 
+            # Check after loop in case it was cancelled
+            if self._is_cancelled: print(">>> Inference cancelled after chunk loop."); return
+
             if split_audio:
+                if self._is_cancelled: print(">>> Inference cancelled before merge_audio."); return
                 audio_opt = merge_audio(
                     chunks, converted_chunks, intervals, 16000, self.tgt_sr
                 )
             else:
-                audio_opt = converted_chunks[0]
+                    audio_opt = converted_chunks[0]
 
             if clean_audio:
+                if self._is_cancelled: print(">>> Inference cancelled before remove_audio_noise."); return
                 cleaned_audio = self.remove_audio_noise(
                     audio_opt, self.tgt_sr, clean_strength
                 )
@@ -324,12 +343,14 @@ class VoiceConverter:
                     audio_opt = cleaned_audio
 
             if post_process:
+                if self._is_cancelled: print(">>> Inference cancelled before post_process_audio."); return
                 audio_opt = self.post_process_audio(
                     audio_input=audio_opt,
                     sample_rate=self.tgt_sr,
                     **kwargs,
                 )
 
+            if self._is_cancelled: print(">>> Inference cancelled before sf.write."); return
             sf.write(audio_output_path, audio_opt, self.tgt_sr, format="WAV")
             output_path_format = audio_output_path.replace(
                 ".wav", f".{export_format.lower()}"
@@ -362,6 +383,7 @@ class VoiceConverter:
             sid (int, optional): Speaker ID. Default is 0.
             **kwargs: Additional keyword arguments.
         """
+        self._is_cancelled = False # Reset cancellation flag at start
         pid = os.getpid()
         try:
             with open(
@@ -392,7 +414,11 @@ class VoiceConverter:
                 )
             ]
             print(f"Detected {len(audio_files)} audio files for inference.")
+            if self._is_cancelled: print(">>> Batch inference cancelled before file loop."); return
             for a in audio_files:
+                # Check cancellation inside loop
+                if self._is_cancelled: print(">>> Batch inference cancelled inside file loop."); break # Exit loop
+
                 new_input = os.path.join(audio_input_paths, a)
                 new_output = os.path.splitext(a)[0] + "_output.wav"
                 new_output = os.path.join(audio_output_path, new_output)

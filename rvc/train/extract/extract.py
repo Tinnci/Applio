@@ -3,6 +3,7 @@ import sys
 import glob
 import time
 import tqdm
+import signal # Added
 import torch
 import torchcrepe
 import numpy as np
@@ -20,6 +21,17 @@ from rvc.lib.utils import load_audio, load_embedding
 from rvc.train.extract.preparing_files import generate_config, generate_filelist
 from rvc.lib.predictors.RMVPE import RMVPE0Predictor
 from rvc.configs.config import Config
+
+# Cancellation Handling Globals
+_is_cancelled = False
+_cancel_event = None # Will be initialized in main
+
+def signal_handler(sig, frame):
+    global _is_cancelled, _cancel_event
+    print(f'>>> Signal {sig} received in extract, requesting cancellation...')
+    _is_cancelled = True
+    if _cancel_event:
+        _cancel_event.set() # Signal worker processes
 
 # Load config
 config = Config()
@@ -84,9 +96,14 @@ class FeatureInput:
         )
         return np.rint(f0_mel).astype(int)
 
-    def process_file(self, file_info, f0_method, hop_length):
+    def process_file(self, file_info, f0_method, hop_length, cancel_event): # Added cancel_event
         inp_path, opt_path_coarse, opt_path_full, _ = file_info
         if os.path.exists(opt_path_coarse) and os.path.exists(opt_path_full):
+            return
+
+        # Check cancellation at start of file processing
+        if cancel_event.is_set():
+            # print(f"Worker {self.device}: Cancellation detected before processing {inp_path}.") # Can be noisy
             return
 
         try:
@@ -100,7 +117,7 @@ class FeatureInput:
                 f"An error occurred extracting file {inp_path} on {self.device}: {error}"
             )
 
-    def process_files(self, files, f0_method, hop_length, device, threads):
+    def process_files(self, files, f0_method, hop_length, device, threads, cancel_event): # Added cancel_event
         self.device = device
         if f0_method == "rmvpe":
             self.model_rmvpe = RMVPE0Predictor(
@@ -108,48 +125,87 @@ class FeatureInput:
                 device=device,
             )
 
-        def worker(file_info):
-            self.process_file(file_info, f0_method, hop_length)
+        # Check cancellation before starting thread pool
+        if cancel_event.is_set():
+            print(f"Worker {self.device}: Cancellation detected before starting pitch thread pool.")
+            return
+
+        def worker(file_info, event): # Pass event to inner worker
+            self.process_file(file_info, f0_method, hop_length, event) # Pass event down
 
         with tqdm.tqdm(total=len(files), leave=True) as pbar:
             with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
-                futures = [executor.submit(worker, f) for f in files]
-                for _ in concurrent.futures.as_completed(futures):
+                futures = [executor.submit(worker, f, cancel_event) for f in files] # Pass event
+                for future in concurrent.futures.as_completed(futures):
+                    # Check cancellation within thread pool loop
+                    if cancel_event.is_set():
+                        print(f"Worker {self.device}: Cancellation detected during pitch thread pool. Stopping...")
+                        # Cancel pending futures (best effort)
+                        for f_cancel in futures:
+                             if not f_cancel.done(): f_cancel.cancel()
+                        break
+                    try:
+                        future.result() # Check for exceptions
+                    except Exception as exc:
+                         print(f"Pitch extraction thread generated exception: {exc}")
                     pbar.update(1)
 
 
-def run_pitch_extraction(files, devices, f0_method, hop_length, threads):
+def run_pitch_extraction(files, devices, f0_method, hop_length, threads, cancel_event): # Added cancel_event
     devices_str = ", ".join(devices)
+    # Note: num_processes is not defined here, using len(devices) for the print statement logic
     print(
-        f"Starting pitch extraction with {num_processes} cores on {devices_str} using {f0_method}..."
+        f"Starting pitch extraction with {len(devices)} processes on {devices_str} using {f0_method}..."
     )
     start_time = time.time()
     fe = FeatureInput()
-    with concurrent.futures.ProcessPoolExecutor(max_workers=len(devices)) as executor:
-        tasks = [
-            executor.submit(
-                fe.process_files,
-                files[i :: len(devices)],
-                f0_method,
-                hop_length,
-                devices[i],
-                threads // len(devices),
-            )
-            for i in range(len(devices))
-        ]
-        concurrent.futures.wait(tasks)
+    try: # Use try...finally for potential cleanup if needed
+        with concurrent.futures.ProcessPoolExecutor(max_workers=len(devices)) as executor:
+            tasks = [
+                executor.submit(
+                    fe.process_files,
+                    files[i :: len(devices)],
+                    f0_method,
+                    hop_length,
+                    devices[i],
+                    threads // len(devices),
+                    cancel_event # Pass event
+                )
+                for i in range(len(devices))
+            ]
+            # Replace wait with as_completed loop
+            for future in concurrent.futures.as_completed(tasks):
+                if cancel_event.is_set():
+                    print(">>> Cancellation detected during pitch extraction process pool. Stopping...")
+                    # Cancel pending futures (best effort)
+                    for f_cancel in tasks:
+                        if not f_cancel.done(): f_cancel.cancel()
+                    break
+                try:
+                    future.result() # Check for exceptions from workers
+                except Exception as exc:
+                    print(f"Pitch extraction worker generated exception: {exc}")
+    finally:
+         if cancel_event.is_set():
+             print(">>> Pitch extraction cancelled.")
+         else:
+             print(f"Pitch extraction completed in {time.time() - start_time:.2f} seconds.")
+         # Executor shuts down automatically via 'with'
 
-    print(f"Pitch extraction completed in {time.time() - start_time:.2f} seconds.")
 
-
-def process_file_embedding(
-    files, embedder_model, embedder_model_custom, device_num, device, n_threads
+def process_file_embedding( # Added cancel_event
+    files, embedder_model, embedder_model_custom, device_num, device, n_threads, cancel_event
 ):
     model = load_embedding(embedder_model, embedder_model_custom).to(device).float()
     model.eval()
     n_threads = max(1, n_threads)
 
-    def worker(file_info):
+    def worker(file_info, event): # Added event parameter
+        # Check cancellation at start of worker
+        if event.is_set():
+            # print(f"Worker {device}: Embedding thread cancelled before processing {file_info[0]}.") # Can be noisy
+            return
+
         wav_file_path, _, _, out_file_path = file_info
         if os.path.exists(out_file_path):
             return
@@ -163,37 +219,71 @@ def process_file_embedding(
         else:
             print(f"{wav_file_path} produced NaN values; skipping.")
 
+    # Check cancellation before starting thread pool
+    if cancel_event.is_set():
+        print(f"Worker {device}: Cancellation detected before starting embedding thread pool.")
+        return
+
     with tqdm.tqdm(total=len(files), leave=True, position=device_num) as pbar:
         with concurrent.futures.ThreadPoolExecutor(max_workers=n_threads) as executor:
-            futures = [executor.submit(worker, f) for f in files]
-            for _ in concurrent.futures.as_completed(futures):
+            futures = [executor.submit(worker, f, cancel_event) for f in files] # Pass event
+            for future in concurrent.futures.as_completed(futures):
+                 # Check cancellation within thread pool loop
+                if cancel_event.is_set():
+                    print(f"Worker {device}: Cancellation detected during embedding thread pool. Stopping...")
+                    # Cancel pending futures (best effort)
+                    for f_cancel in futures:
+                         if not f_cancel.done(): f_cancel.cancel()
+                    break
+                try:
+                    future.result() # Check for exceptions
+                except Exception as exc:
+                     print(f"Embedding extraction thread generated exception: {exc}")
                 pbar.update(1)
 
 
-def run_embedding_extraction(
-    files, devices, embedder_model, embedder_model_custom, threads
+def run_embedding_extraction( # Added cancel_event
+    files, devices, embedder_model, embedder_model_custom, threads, cancel_event
 ):
     devices_str = ", ".join(devices)
+    # Note: num_processes is not defined here, using len(devices) for the print statement logic
     print(
-        f"Starting embedding extraction with {num_processes} cores on {devices_str}..."
+        f"Starting embedding extraction with {len(devices)} processes on {devices_str}..."
     )
     start_time = time.time()
-    with concurrent.futures.ProcessPoolExecutor(max_workers=len(devices)) as executor:
-        tasks = [
-            executor.submit(
-                process_file_embedding,
-                files[i :: len(devices)],
-                embedder_model,
-                embedder_model_custom,
-                i,
-                devices[i],
-                threads // len(devices),
-            )
-            for i in range(len(devices))
-        ]
-        concurrent.futures.wait(tasks)
-
-    print(f"Embedding extraction completed in {time.time() - start_time:.2f} seconds.")
+    try: # Use try...finally for potential cleanup if needed
+        with concurrent.futures.ProcessPoolExecutor(max_workers=len(devices)) as executor:
+            tasks = [
+                executor.submit(
+                    process_file_embedding,
+                    files[i :: len(devices)],
+                    embedder_model,
+                    embedder_model_custom,
+                    i,
+                    devices[i],
+                    threads // len(devices),
+                    cancel_event # Pass event
+                )
+                for i in range(len(devices))
+            ]
+            # Replace wait with as_completed loop
+            for future in concurrent.futures.as_completed(tasks):
+                if cancel_event.is_set():
+                    print(">>> Cancellation detected during embedding extraction process pool. Stopping...")
+                    # Cancel pending futures (best effort)
+                    for f_cancel in tasks:
+                        if not f_cancel.done(): f_cancel.cancel()
+                    break
+                try:
+                    future.result() # Check for exceptions from workers
+                except Exception as exc:
+                    print(f"Embedding extraction worker generated exception: {exc}")
+    finally:
+         if cancel_event.is_set():
+             print(">>> Embedding extraction cancelled.")
+         else:
+             print(f"Embedding extraction completed in {time.time() - start_time:.2f} seconds.")
+         # Executor shuts down automatically via 'with'
 
 
 if __name__ == "__main__":
@@ -238,11 +328,37 @@ if __name__ == "__main__":
 
     devices = ["cpu"] if gpus == "-" else [f"cuda:{idx}" for idx in gpus.split("-")]
 
-    run_pitch_extraction(files, devices, f0_method, hop_length, num_processes)
+    # Initialize multiprocessing manager and cancellation event
+    manager = mp.Manager()
+    cancel_event = manager.Event()
+    _cancel_event = cancel_event # Assign to global for handler
 
+    # Register signal handler
+    print("Registering signal handler for extract...")
+    signal.signal(signal.SIGINT, signal_handler)
+    try:
+        signal.signal(signal.SIGTERM, signal_handler)
+    except AttributeError:
+        pass # SIGTERM not on Windows
+
+    # Run pitch extraction with cancellation support
+    run_pitch_extraction(files, devices, f0_method, hop_length, num_processes, cancel_event)
+
+    # Check for cancellation after pitch extraction
+    if cancel_event.is_set():
+         print(">>> Cancellation detected after pitch extraction. Skipping embedding extraction.")
+         sys.exit(1)
+
+    # Run embedding extraction with cancellation support
     run_embedding_extraction(
-        files, devices, embedder_model, embedder_model_custom, num_processes
+        files, devices, embedder_model, embedder_model_custom, num_processes, cancel_event
     )
 
+    # Check for cancellation after embedding extraction
+    if cancel_event.is_set():
+         print(">>> Cancellation detected after embedding extraction. Skipping config/filelist generation.")
+         sys.exit(1)
+
+    # Only generate config and filelist if not cancelled
     generate_config(sample_rate, exp_dir)
     generate_filelist(exp_dir, sample_rate, include_mutes)

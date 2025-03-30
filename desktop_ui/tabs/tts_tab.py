@@ -1,12 +1,14 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QGridLayout, 
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QGridLayout,
                              QSlider, QComboBox, QCheckBox, QLineEdit, QFileDialog, QProgressBar,
-                             QMessageBox, QApplication, QSizePolicy, QSpacerItem, QTabWidget, 
+                             QMessageBox, QApplication, QSizePolicy, QSpacerItem, QTabWidget,
                              QGroupBox, QTextEdit) # Added QTextEdit, QGroupBox
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 import os
 import sys
 import traceback
 import tempfile # For temporary TTS file
+import subprocess # Added
+import signal # Added
 
 # Ensure the core Applio logic can be imported
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -14,7 +16,8 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Import core functions and data
-from core import run_tts_script, locales # Import locales for TTS voices
+# from core import run_tts_script, locales # No longer calling run_tts_script directly
+from core import locales, import_voice_converter # Import VoiceConverter import function
 # Import helper functions/constants from inference tab for reuse
 from desktop_ui.tabs.inference_tab import MODEL_ROOT, AUDIO_ROOT, InferenceTab # Added AUDIO_ROOT
 # Import the new audio player widget
@@ -32,28 +35,73 @@ class TtsWorker(QThread):
         self.params = params
         self._is_running = True
         self.temp_tts_file = None
+        self.tts_process = None # To store TTS subprocess
+        # Dynamically import and instantiate VoiceConverter
+        VoiceConverterClass = import_voice_converter()
+        self.converter = VoiceConverterClass()
 
     def run(self):
         """Execute the TTS and RVC task."""
+        self.tts_process = None
+        python_executable = sys.executable
+        tts_script_path = os.path.join(project_root, "rvc", "lib", "tools", "tts.py")
+
         try:
             self.status.emit("Starting TTS synthesis...")
-            
-            # Create a temporary file for the intermediate TTS output
+
+            # --- Step 1: TTS Synthesis (Subprocess) ---
             fd, self.temp_tts_file = tempfile.mkstemp(suffix=".wav", prefix="applio_tts_")
             os.close(fd) # Close the file descriptor
             print(f"Using temporary TTS file: {self.temp_tts_file}")
 
-            # Map UI params to core function params
-            core_params = {
-                "tts_text": self.params.get("tts_text"),
-                "tts_voice": self.params.get("tts_voice"),
-                "tts_rate": self.params.get("tts_rate", 0),
-                "output_tts_path": self.temp_tts_file, # Use temp file
-                "pth_path": self.params.get("pth_path"),
+            tts_command = [
+                python_executable,
+                tts_script_path,
+                self.temp_tts_file, # File to write to
+                self.params.get("tts_text"),
+                self.params.get("tts_voice"),
+                str(self.params.get("tts_rate", 0)),
+                self.temp_tts_file, # Output path (same as input for this script)
+            ]
+            tts_command = [arg for arg in tts_command if arg is not None]
+
+            print(f"Running TTS command: {' '.join(tts_command)}")
+            self.tts_process = subprocess.Popen(
+                tts_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=project_root
+            )
+            stdout_tts, stderr_tts = self.tts_process.communicate() # Wait for TTS to finish
+            return_code_tts = self.tts_process.poll()
+            self.tts_process = None # Clear process reference
+
+            if not self._is_running:
+                self.status.emit("TTS/RVC cancelled during TTS step.")
+                print("TTS/RVC cancelled during TTS step.")
+                self._cleanup_temp_file()
+                return
+
+            if return_code_tts != 0:
+                error_msg = f"TTS Script Error (Code: {return_code_tts}):\nstderr:\n{stderr_tts}\nstdout:\n{stdout_tts}"
+                raise Exception(error_msg)
+
+            print("TTS synthesis finished.")
+            self.status.emit("TTS finished, starting RVC conversion...")
+            self.progress.emit(50) # Mark TTS as 50%
+
+            # --- Step 2: RVC Conversion (Direct Call) ---
+            if not os.path.exists(self.temp_tts_file) or os.path.getsize(self.temp_tts_file) == 0:
+                 raise FileNotFoundError(f"Temporary TTS file is missing or empty: {self.temp_tts_file}")
+
+            # Map UI params to core function params for RVC
+            rvc_params = {
+                "audio_input_path": self.temp_tts_file, # Use temp file as input
+                "audio_output_path": self.params.get("output_rvc_path"),
+                "model_path": self.params.get("pth_path"),
                 "index_path": self.params.get("index_path"),
                 "pitch": self.params.get("pitch", 0),
-                "output_rvc_path": self.params.get("output_rvc_path"),
-                # Add other RVC params from self.params
                 "index_rate": self.params.get("index_rate", 0.75),
                 "volume_envelope": int(self.params.get("rms_mix_rate", 1.0) * 100),
                 "protect": self.params.get("protect", 0.5),
@@ -69,42 +117,84 @@ class TtsWorker(QThread):
                 "embedder_model": self.params.get("embedder_model", "contentvec"),
                 "embedder_model_custom": self.params.get("embedder_model_custom", None),
                 "sid": self.params.get("sid", 0),
+                # Add formant/post-process params if needed, similar to inference tab
+                "formant_shifting": self.params.get("formant_shifting", False),
+                "formant_qfrency": self.params.get("formant_qfrency", 1.0),
+                "formant_timbre": self.params.get("formant_timbre", 1.0),
+                # Post-process params would need to be gathered in TtsTab UI and passed here
             }
-            core_params = {k: v for k, v in core_params.items() if v is not None}
+            rvc_params = {k: v for k, v in rvc_params.items() if v is not None}
 
-            # --- Actual Call ---
-            # run_tts_script handles both TTS generation and RVC conversion
-            message, output_path = run_tts_script(**core_params)
-            # --- End Actual Call ---
+            # Call converter's single method directly
+            message, output_path = self.converter.convert_audio(**rvc_params)
 
-            # --- Placeholder for progress ---
-            self.progress.emit(50) 
-            import time
-            time.sleep(1) 
+            # Check if cancelled during RVC conversion
+            if not self._is_running:
+                self.status.emit("TTS/RVC cancelled during RVC step.")
+                print("TTS/RVC cancelled during RVC step.")
+                self._cleanup_temp_file()
+                return
+
             self.progress.emit(100)
-            # --- End Placeholder ---
 
             if self._is_running:
                 self.status.emit(message)
                 self.finished.emit(message, output_path)
+
         except Exception as e:
             error_str = f"TTS/RVC Error: {e}\n{traceback.format_exc()}"
-            self.error.emit(error_str)
+            print(error_str)
+            if self._is_running: # Only emit error if not cancelled
+                self.error.emit(error_str)
         finally:
-            # Clean up temporary file
-            if self.temp_tts_file and os.path.exists(self.temp_tts_file):
-                try:
-                    os.remove(self.temp_tts_file)
-                    print(f"Removed temporary TTS file: {self.temp_tts_file}")
-                except OSError as e:
-                    print(f"Error removing temporary file {self.temp_tts_file}: {e}")
-            if self._is_running: 
+            self._cleanup_temp_file()
+            self.tts_process = None # Ensure cleared
+            self.converter = None # Release converter instance
+            if self._is_running:
                 self.status.emit("Idle")
 
-    def stop(self):
-        self._is_running = False
-        self.status.emit("Cancelling TTS/RVC...")
-        # TODO: Implement cancellation if possible (might need core changes)
+    def _cleanup_temp_file(self):
+        """Safely removes the temporary TTS file."""
+        if self.temp_tts_file and os.path.exists(self.temp_tts_file):
+            try:
+                os.remove(self.temp_tts_file)
+                print(f"Removed temporary TTS file: {self.temp_tts_file}")
+            except OSError as e:
+                print(f"Error removing temporary file {self.temp_tts_file}: {e}")
+        self.temp_tts_file = None
+
+    def cancel_process(self):
+        """Requests cancellation of the running TTS/RVC task."""
+        print("Requesting cancellation from TtsWorker...")
+        self._is_running = False # Set internal flag first
+
+        # Cancel RVC part (direct call)
+        if self.converter:
+            print("Requesting cancellation from VoiceConverter...")
+            self.converter.request_cancellation()
+
+        # Cancel TTS subprocess if it's running
+        if self.tts_process and self.tts_process.poll() is None:
+            print(f"Attempting to send SIGINT to TTS process {self.tts_process.pid}...")
+            try:
+                self.tts_process.send_signal(signal.SIGINT)
+                # Give it a moment to terminate
+                try:
+                    self.tts_process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    print("TTS process did not terminate via SIGINT, sending SIGTERM...")
+                    self.tts_process.terminate() # More forceful
+                    try:
+                        self.tts_process.wait(timeout=1)
+                    except subprocess.TimeoutExpired:
+                         print("TTS process did not terminate via SIGTERM, killing...")
+                         self.tts_process.kill() # Last resort
+            except Exception as e:
+                print(f"Error sending signal to TTS process: {e}")
+        else:
+            print("TTS process not running or already finished.")
+
+        self.status.emit("Cancellation requested...")
 
 
 class TtsTab(QWidget):
@@ -264,20 +354,27 @@ class TtsTab(QWidget):
 
         # --- Action Button & Status ---
         action_status_group = QWidget()
-        action_status_layout = QVBoxLayout(action_status_group)
+        action_status_layout = QHBoxLayout(action_status_group) # Use QHBoxLayout
         action_status_layout.setContentsMargins(0,10,0,0)
 
+        # Left side: Synthesize button, Status, Progress
+        left_v_layout = QVBoxLayout()
         self.synthesize_button = QPushButton(self.tr("Synthesize and Convert")) # Changed & to and
         self.synthesize_button.clicked.connect(self.start_synthesis)
-        action_status_layout.addWidget(self.synthesize_button)
-
+        left_v_layout.addWidget(self.synthesize_button)
         self.status_label = QLabel(self.tr("Status: Idle")) # Translate initial status
-        action_status_layout.addWidget(self.status_label)
-
+        left_v_layout.addWidget(self.status_label)
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         self.progress_bar.setTextVisible(False)
-        action_status_layout.addWidget(self.progress_bar)
+        left_v_layout.addWidget(self.progress_bar)
+        action_status_layout.addLayout(left_v_layout)
+
+        # Right side: Cancel button
+        self.cancel_button_tts = QPushButton("Cancel")
+        self.cancel_button_tts.setEnabled(False)
+        self.cancel_button_tts.clicked.connect(self.request_cancellation_tts)
+        action_status_layout.addWidget(self.cancel_button_tts)
 
         main_layout.addWidget(action_status_group)
 
@@ -302,7 +399,7 @@ class TtsTab(QWidget):
         start_dir = os.path.dirname(self.output_rvc_path_edit.text()) if self.output_rvc_path_edit.text() else AUDIO_ROOT
         if not os.path.exists(start_dir):
             start_dir = AUDIO_ROOT if os.path.exists(AUDIO_ROOT) else project_root
-            
+
         default_filename = os.path.basename(self.output_rvc_path_edit.text()) if self.output_rvc_path_edit.text() else "tts_output.wav"
         selected_format = self.export_format_combo_tts.currentText().lower() # Get format from new combo
         default_filename = os.path.splitext(default_filename)[0] + f".{selected_format}"
@@ -371,6 +468,7 @@ class TtsTab(QWidget):
 
         # --- Start worker thread ---
         self.synthesize_button.setEnabled(False)
+        self.cancel_button_tts.setEnabled(True) # Enable cancel button
         self.progress_bar.setValue(0)
         self.progress_bar.setFormat(self.tr("Synthesizing...")) # Translate progress format
         self.progress_bar.setTextVisible(True)
@@ -384,9 +482,20 @@ class TtsTab(QWidget):
         self.worker.status.connect(self.update_status)
         self.worker.finished.connect(self.on_synthesis_finished)
         self.worker.error.connect(self.on_synthesis_error)
-        self.worker.finished.connect(lambda msg, path: self.reset_ui_state())
-        self.worker.error.connect(lambda err_msg: self.reset_ui_state())
+        # Connect finished/error to disable cancel button
+        self.worker.finished.connect(lambda msg, path: self.cancel_button_tts.setEnabled(False))
+        self.worker.error.connect(lambda err_msg: self.cancel_button_tts.setEnabled(False))
         self.worker.start()
+
+    def request_cancellation_tts(self):
+        """Sends cancellation request to the TTS worker thread."""
+        if self.worker and self.worker.isRunning():
+            print("Cancel button clicked, requesting cancellation from TTS worker...")
+            self.worker.cancel_process()
+            self.cancel_button_tts.setEnabled(False) # Disable after requesting
+            self.status_label.setText("Status: Cancellation requested...")
+        else:
+            print("Cancel button clicked, but no TTS worker is running.")
 
     def browse_f0_file_tts(self):
         # Similar to browse_f0_file in InferenceTab
@@ -397,6 +506,7 @@ class TtsTab(QWidget):
 
     def reset_ui_state(self, reset_player=True):
         self.synthesize_button.setEnabled(True)
+        self.cancel_button_tts.setEnabled(False) # Ensure cancel is disabled
         self.progress_bar.setValue(0)
         self.progress_bar.setTextVisible(False)
         # Optionally reset player on finish/error
@@ -425,6 +535,7 @@ class TtsTab(QWidget):
         # Load audio into player
         if self.audio_player and output_audio_path and os.path.exists(output_audio_path):
             self.audio_player.set_media(output_audio_path)
+        self.reset_ui_state(reset_player=False) # Reset UI but keep player loaded
 
     def on_synthesis_error(self, error_message):
         # Translate status and QMessageBox
@@ -434,3 +545,4 @@ class TtsTab(QWidget):
             self.audio_player.reset_player()
         QMessageBox.critical(self, self.tr("Synthesis Error"), self.tr("An error occurred:\n{0}").format(error_message))
         print(f"Error details:\n{error_message}")
+        self.reset_ui_state(reset_player=True) # Reset UI and player on error

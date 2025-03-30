@@ -11,9 +11,9 @@ This document tracks the progress of implementing the PyQt6 desktop UI for Appli
 - [x] Basic `QThread` worker structure for background tasks in each tab.
 - [x] Basic status label and progress bar in relevant tabs.
 - [x] Basic error handling and display using `QMessageBox`.
-- [ ] Internationalization (i18n) support. *(Framework setup, integration pending)*
+- [x] Internationalization (i18n) support. *(Framework setup, loading logic, initial zh_CN translations added)*
 - [x] Theme application based on settings. *(Initial loading logic added)*
-- [ ] Robust task cancellation.
+- [x] Robust task cancellation. *(Implemented via signal/flag propagation)*
 - [ ] Granular progress reporting (requires core changes).
 - [x] Audio playback widgets. *(Widget created, integrated in TTS)*
 
@@ -80,4 +80,4 @@ This document tracks the progress of implementing the PyQt6 desktop UI for Appli
     - [x] Saving settings to `config.json`.
     - [x] Prompting user for manual restart.
     - [x] Actual theme application on startup. *(Loading logic added)*
-    - [ ] Actual language application (i18n integration). *(Framework setup, integration pending)*
+    - [x] Actual language application (i18n integration). *(Framework setup, loading logic, initial zh_CN translations added)*

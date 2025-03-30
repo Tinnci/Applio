@@ -6,6 +6,8 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 import os
 import sys
 import traceback
+import subprocess # Added
+import signal # Added
 
 # Ensure the core Applio logic can be imported
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -26,97 +28,168 @@ class TrainWorker(QThread):
 
     def __init__(self, step, params):
         super().__init__()
-        self.step = step 
+        self.step = step
         self.params = params
         self._is_running = True
+        self.process = None # Added to store subprocess
 
     def run(self):
-        """Execute the training task step."""
+        """Execute the training task step by launching a subprocess."""
+        self.process = None
+        python_executable = sys.executable # Use the same python interpreter
+        logs_path = os.path.join(project_root, "logs") # Define logs path relative to project root
+        model_name = self.params.get("model_name")
+        model_log_path = os.path.join(logs_path, model_name) if model_name else None
+
         try:
             self.status.emit(f"Starting {self.step}...")
-            message = ""
-            
-            # --- Actual Call ---
+            command = [python_executable]
+            script_path = None
+            args = []
+
+            # --- Construct Command ---
             if self.step == "preprocess":
-                core_params = {
-                    "model_name": self.params.get("model_name"),
-                    "dataset_path": self.params.get("dataset_path"),
-                    "sample_rate": self.params.get("sample_rate"),
-                    "cpu_cores": self.params.get("cpu_cores"),
-                    "cut_preprocess": self.params.get("cut_preprocess"),
-                    "process_effects": self.params.get("process_effects"), 
-                    "noise_reduction": self.params.get("noise_reduction"), 
-                    "clean_strength": self.params.get("clean_strength"), 
-                    "chunk_len": self.params.get("chunk_len"), 
-                    "overlap_len": self.params.get("overlap_len"), 
-                }
-                core_params = {k: v for k, v in core_params.items() if v is not None}
-                message = run_preprocess_script(**core_params)
+                script_path = os.path.join(project_root, "rvc", "train", "preprocess", "preprocess.py")
+                if not model_log_path: raise ValueError("Model name is required for preprocess.")
+                args = [
+                    model_log_path,
+                    self.params.get("dataset_path"),
+                    str(self.params.get("sample_rate")),
+                    str(self.params.get("cpu_cores")),
+                    self.params.get("cut_preprocess"),
+                    str(self.params.get("process_effects")),
+                    str(self.params.get("noise_reduction")),
+                    str(self.params.get("clean_strength")),
+                    str(self.params.get("chunk_len")),
+                    str(self.params.get("overlap_len")),
+                ]
             elif self.step == "extract":
-                 core_params = {
-                    "model_name": self.params.get("model_name"),
-                    "f0_method": self.params.get("f0_method"),
-                    "hop_length": self.params.get("hop_length"),
-                    "cpu_cores": self.params.get("cpu_cores"),
-                    "gpu": self.params.get("gpu"),
-                    "sample_rate": self.params.get("sample_rate"),
-                    "embedder_model": self.params.get("embedder_model"),
-                    "embedder_model_custom": self.params.get("embedder_model_custom"),
-                    "include_mutes": self.params.get("include_mutes"), 
-                 }
-                 core_params = {k: v for k, v in core_params.items() if v is not None}
-                 message = run_extract_script(**core_params)
+                script_path = os.path.join(project_root, "rvc", "train", "extract", "extract.py")
+                if not model_log_path: raise ValueError("Model name is required for extract.")
+                args = [
+                    model_log_path,
+                    self.params.get("f0_method"),
+                    str(self.params.get("hop_length")),
+                    str(self.params.get("cpu_cores")),
+                    self.params.get("gpu"),
+                    str(self.params.get("sample_rate")),
+                    self.params.get("embedder_model"),
+                    self.params.get("embedder_model_custom") or "None", # Pass None as string if empty
+                    str(self.params.get("include_mutes")),
+                ]
             elif self.step == "train":
-                 core_params = {
-                    "model_name": self.params.get("model_name"),
-                    "save_every_epoch": self.params.get("save_every_epoch"),
-                    "save_only_latest": self.params.get("save_only_latest"),
-                    "save_every_weights": self.params.get("save_every_weights"),
-                    "total_epoch": self.params.get("total_epoch"),
-                    "sample_rate": self.params.get("sample_rate"),
-                    "batch_size": self.params.get("batch_size"),
-                    "gpu": self.params.get("gpu"),
-                    "overtraining_detector": self.params.get("overtraining_detector"),
-                    "overtraining_threshold": self.params.get("overtraining_threshold"),
-                    "pretrained": self.params.get("pretrained"),
-                    "cleanup": self.params.get("cleanup"), 
-                    "index_algorithm": self.params.get("index_algorithm"), 
-                    "cache_data_in_gpu": self.params.get("cache_data_in_gpu"),
-                    "custom_pretrained": self.params.get("custom_pretrained"),
-                    "g_pretrained_path": self.params.get("g_pretrained_path"),
-                    "d_pretrained_path": self.params.get("d_pretrained_path"),
-                    "vocoder": self.params.get("vocoder"), 
-                    "checkpointing": self.params.get("checkpointing"), 
-                 }
-                 core_params = {k: v for k, v in core_params.items() if v is not None}
-                 message = run_train_script(**core_params) 
-            elif self.step == "index": 
-                 core_params = {
-                     "model_name": self.params.get("model_name"),
-                     "index_algorithm": self.params.get("index_algorithm"),
-                 }
-                 core_params = {k: v for k, v in core_params.items() if v is not None}
-                 message = run_index_script(**core_params)
+                script_path = os.path.join(project_root, "rvc", "train", "train.py")
+                if not model_name: raise ValueError("Model name is required for train.")
+                # Handle pretrained paths - core script expects strings, even if empty
+                g_path = self.params.get("g_pretrained_path") or ""
+                d_path = self.params.get("d_pretrained_path") or ""
+                args = [
+                    model_name,
+                    str(self.params.get("save_every_epoch")),
+                    str(self.params.get("total_epoch")),
+                    g_path,
+                    d_path,
+                    self.params.get("gpu"),
+                    str(self.params.get("batch_size")),
+                    str(self.params.get("sample_rate")),
+                    str(self.params.get("save_only_latest")),
+                    str(self.params.get("save_every_weights")),
+                    str(self.params.get("cache_data_in_gpu")),
+                    str(self.params.get("overtraining_detector")),
+                    str(self.params.get("overtraining_threshold")),
+                    str(self.params.get("cleanup")),
+                    self.params.get("vocoder"),
+                    str(self.params.get("checkpointing")),
+                    # Note: index_algorithm is handled by core.run_train_script implicitly calling run_index_script
+                ]
+            elif self.step == "index":
+                 # Indexing is often fast, but handle it like others for consistency
+                 script_path = os.path.join(project_root, "rvc", "train", "process", "extract_index.py")
+                 if not model_log_path: raise ValueError("Model name is required for index.")
+                 args = [
+                     model_log_path,
+                     self.params.get("index_algorithm"),
+                 ]
             else:
                 raise ValueError(f"Unknown training step: {self.step}")
-            # --- End Actual Call ---
 
-            self.progress.emit(50) 
-            import time; time.sleep(1) 
-            self.progress.emit(100)
+            if not script_path or not os.path.exists(script_path):
+                 raise FileNotFoundError(f"Script not found for step: {self.step} at {script_path}")
 
-            if self._is_running:
+            command.append(script_path)
+            command.extend([arg for arg in args if arg is not None]) # Add non-None args
+
+            self.status.emit(f"Running command: {' '.join(command)}")
+            print(f"Running command: {' '.join(command)}") # Log command
+
+            # Launch subprocess
+            self.process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=project_root # Run from project root
+            )
+
+            # TODO: Implement real-time progress reading from stdout/stderr if needed
+            # For now, just wait for completion or cancellation
+            stdout, stderr = self.process.communicate() # Wait for process to finish
+
+            return_code = self.process.poll()
+
+            if not self._is_running: # Check if cancellation was requested during run
+                 self.status.emit(f"{self.step.capitalize()} cancelled.")
+                 print(f"{self.step.capitalize()} process was cancelled.")
+                 # No finished signal emitted on cancellation
+                 return # Exit run method early
+
+            if return_code == 0:
+                self.progress.emit(100)
+                message = f"{self.step.capitalize()} completed successfully."
+                print(message)
+                if stdout: print(f"stdout:\n{stdout}")
                 self.status.emit(message)
                 self.finished.emit(message)
+            else:
+                error_output = f"Error during {self.step}. Return code: {return_code}\n"
+                if stderr: error_output += f"stderr:\n{stderr}\n"
+                if stdout: error_output += f"stdout:\n{stdout}" # Include stdout for context
+                print(error_output)
+                self.error.emit(error_output)
+
         except Exception as e:
             error_str = f"{self.step.capitalize()} Error: {e}\n{traceback.format_exc()}"
-            self.error.emit(error_str)
+            print(error_str)
+            if self._is_running: # Only emit error if not cancelled
+                 self.error.emit(error_str)
         finally:
-            if self._is_running: self.status.emit("Idle")
+            self.process = None # Clear process reference
+            if self._is_running: self.status.emit("Idle") # Reset status only if not cancelled
 
-    def stop(self):
+    def stop(self): # This seems unused now, replaced by cancel_process
         self._is_running = False
-        self.status.emit(f"Cancelling {self.step}...")
+        # self.status.emit(f"Cancelling {self.step}...") # Handled by cancel_process
+
+    def cancel_process(self):
+        """Requests cancellation of the running subprocess."""
+        if self.process and self.process.poll() is None: # Check if process exists and is running
+            self.status.emit(f"Sending cancellation signal to {self.step} process...")
+            print(f"Attempting to send SIGINT to process {self.process.pid}...")
+            try:
+                # Try SIGINT first (graceful shutdown)
+                self.process.send_signal(signal.SIGINT)
+                # Optional: Add a small wait here, then check poll() again
+                # If still running after timeout, consider terminate()
+                # self.process.terminate() # More forceful
+            except Exception as e:
+                error_msg = f"Error sending signal to process: {e}"
+                print(error_msg)
+                self.error.emit(error_msg) # Emit error if signal fails
+                # Fallback? self.process.kill()?
+        else:
+            self.status.emit("Process not running or already finished.")
+            print("Process not running or already finished.")
+        self._is_running = False # Ensure worker loop stops even if signal fails
 
 
 class TrainTab(QWidget):
@@ -194,10 +267,13 @@ class TrainTab(QWidget):
         self.index_button = QPushButton("Train Index"); self.index_button.clicked.connect(lambda: self.start_training_step("index")); index_layout.addWidget(self.index_button, 1, 0, 1, 2) 
         main_layout.addWidget(index_group)
 
-        # --- Status/Progress ---
-        status_group = QWidget(); status_layout = QVBoxLayout(status_group); status_layout.setContentsMargins(0,10,0,0)
-        self.status_label = QLabel("Status: Idle"); status_layout.addWidget(self.status_label)
-        self.progress_bar = QProgressBar(); self.progress_bar.setValue(0); self.progress_bar.setTextVisible(False); status_layout.addWidget(self.progress_bar)
+        # --- Status/Progress/Cancel ---
+        status_group = QWidget(); status_layout = QHBoxLayout(status_group); status_layout.setContentsMargins(0,10,0,0) # Changed to QHBoxLayout
+        progress_v_layout = QVBoxLayout() # Nested layout for status and progress
+        self.status_label = QLabel("Status: Idle"); progress_v_layout.addWidget(self.status_label)
+        self.progress_bar = QProgressBar(); self.progress_bar.setValue(0); self.progress_bar.setTextVisible(False); progress_v_layout.addWidget(self.progress_bar)
+        status_layout.addLayout(progress_v_layout) # Add status/progress to left
+        self.cancel_button = QPushButton("Cancel"); self.cancel_button.setEnabled(False); self.cancel_button.clicked.connect(self.request_cancellation); status_layout.addWidget(self.cancel_button) # Add cancel button to right
         main_layout.addWidget(status_group)
 
         main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
@@ -312,7 +388,21 @@ class TrainTab(QWidget):
         self.worker.status.connect(self.update_status)
         self.worker.finished.connect(self.on_step_finished)
         self.worker.error.connect(self.on_step_error)
+        # Connect worker finished signal to re-enable cancel button too
+        self.worker.finished.connect(lambda: self.cancel_button.setEnabled(False)) 
+        self.worker.error.connect(lambda: self.cancel_button.setEnabled(False)) 
+        self.cancel_button.setEnabled(True) # Enable cancel button when worker starts
         self.worker.start()
+
+    def request_cancellation(self):
+        """Sends cancellation request to the worker thread."""
+        if self.worker and self.worker.isRunning():
+            print("Cancel button clicked, requesting cancellation from worker...")
+            self.worker.cancel_process()
+            self.cancel_button.setEnabled(False) # Disable after requesting
+            self.status_label.setText("Status: Cancellation requested...")
+        else:
+            print("Cancel button clicked, but no worker is running.")
 
     def set_buttons_enabled(self, enabled):
         """Enable/disable all step buttons."""
@@ -325,6 +415,7 @@ class TrainTab(QWidget):
         """Re-enables buttons and resets progress."""
         self.set_buttons_enabled(True)
         self.progress_bar.setValue(0); self.progress_bar.setTextVisible(False)
+        self.cancel_button.setEnabled(False) # Ensure cancel button is disabled on reset
 
     def update_progress(self, value):
         self.progress_bar.setValue(value)
@@ -335,7 +426,7 @@ class TrainTab(QWidget):
     def on_step_finished(self, message):
         self.update_status(f"Finished: {message}")
         QMessageBox.information(self, f"{self.worker.step.capitalize()} Complete", message)
-        self.reset_ui_state()
+        self.reset_ui_state() # This will disable cancel button
 
     def on_step_error(self, error_message):
         self.update_status(f"Error during {self.worker.step}")
