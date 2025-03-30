@@ -267,7 +267,7 @@ class TtsTab(QWidget):
         action_status_layout = QVBoxLayout(action_status_group)
         action_status_layout.setContentsMargins(0,10,0,0)
 
-        self.synthesize_button = QPushButton(self.tr("Synthesize & Convert"))
+        self.synthesize_button = QPushButton(self.tr("Synthesize and Convert")) # Changed & to and
         self.synthesize_button.clicked.connect(self.start_synthesis)
         action_status_layout.addWidget(self.synthesize_button)
 

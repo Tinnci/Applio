@@ -11,11 +11,11 @@ This document tracks the progress of implementing the PyQt6 desktop UI for Appli
 - [x] Basic `QThread` worker structure for background tasks in each tab.
 - [x] Basic status label and progress bar in relevant tabs.
 - [x] Basic error handling and display using `QMessageBox`.
-- [ ] Internationalization (i18n) support.
-- [ ] Theme application based on settings.
+- [ ] Internationalization (i18n) support. *(Framework setup, integration pending)*
+- [x] Theme application based on settings. *(Initial loading logic added)*
 - [ ] Robust task cancellation.
 - [ ] Granular progress reporting (requires core changes).
-- [ ] Audio playback widgets.
+- [x] Audio playback widgets. *(Widget created, integrated in TTS)*
 
 ## Tab Status
 
@@ -26,8 +26,8 @@ This document tracks the progress of implementing the PyQt6 desktop UI for Appli
     - [x] Conditional visibility for advanced settings sliders/groups.
     - [x] Batch Inference sub-tab UI structure.
     - [x] Batch Inference core logic connection (`run_batch_infer_script`).
-    - [ ] Post-Process Effects UI and logic (Single & Batch).
-    - [ ] Preset saving/loading UI and logic (Single & Batch).
+    - [x] Post-Process Effects UI and logic (Single & Batch). *(UI elements added)*
+    - [x] Preset saving/loading UI and logic (Single & Batch). *(UI and basic functions added)*
     - [ ] Custom Embedder file management UI (Upload/Move).
 
 - **Training (`train_tab.py`)**
@@ -43,8 +43,8 @@ This document tracks the progress of implementing the PyQt6 desktop UI for Appli
     - [x] TTS Voice dropdown population.
     - [x] Reused RVC Model/Index/Parameter widgets from Inference tab.
     - [x] Core logic connection (`run_tts_script`) using temporary file.
-    - [ ] Add missing RVC advanced parameters (Split, Autotune, Clean, etc.).
-    - [ ] Add audio playback for output.
+    - [x] Add missing RVC advanced parameters (Split, Autotune, Clean, etc.). *(UI elements added)*
+    - [x] Add audio playback for output. *(AudioPlayer integrated)*
 
 - **Voice Blender (`voice_blender_tab.py`)**
     - [x] Basic UI layout (Model A/B Select, Ratio Slider, Output Name)
@@ -61,8 +61,8 @@ This document tracks the progress of implementing the PyQt6 desktop UI for Appli
 - **Download (`download_tab.py`)**
     - [x] Basic UI layout (Link Input, Download Button, Status Label)
     - [x] Core logic connection (`run_download_script`).
-    - [ ] Implement File Drop install section.
-    - [ ] Implement Pretrained model browser/download section.
+    - [x] Implement File Drop install section. *(UI and basic file handling added)*
+    - [ ] Implement Pretrained model browser/download section. *(Placeholder added)*
 
 - **Extra (`extra_tab.py`)**
     - [x] Sub-tab structure (Model Info, F0 Curve, Audio Analyzer).
@@ -79,5 +79,5 @@ This document tracks the progress of implementing the PyQt6 desktop UI for Appli
     - [x] Loading settings from `config.json`.
     - [x] Saving settings to `config.json`.
     - [x] Prompting user for manual restart.
-    - [ ] Actual theme application on startup.
-    - [ ] Actual language application (i18n integration).
+    - [x] Actual theme application on startup. *(Loading logic added)*
+    - [ ] Actual language application (i18n integration). *(Framework setup, integration pending)*

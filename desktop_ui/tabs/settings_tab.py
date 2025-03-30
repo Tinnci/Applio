@@ -32,34 +32,34 @@ class SettingsTab(QWidget):
         main_layout = QVBoxLayout(self)
 
         # --- General Settings ---
-        general_group = QGroupBox("General Settings")
+        general_group = QGroupBox(self.tr("General Settings"))
         general_layout = QGridLayout(general_group)
 
         # Theme
-        general_layout.addWidget(QLabel("Theme:"), 0, 0)
+        general_layout.addWidget(QLabel(self.tr("Theme:")), 0, 0)
         self.theme_combo = QComboBox()
         self.populate_themes() # Populate dropdown
         general_layout.addWidget(self.theme_combo, 0, 1)
 
         # Language
-        general_layout.addWidget(QLabel("Language:"), 1, 0)
+        general_layout.addWidget(QLabel(self.tr("Language:")), 1, 0)
         self.language_combo = QComboBox()
         self.populate_languages() # Populate dropdown
         general_layout.addWidget(self.language_combo, 1, 1)
 
         # Discord Presence
-        self.discord_checkbox = QCheckBox("Enable Discord Presence")
+        self.discord_checkbox = QCheckBox(self.tr("Enable Discord Presence"))
         general_layout.addWidget(self.discord_checkbox, 2, 0, 1, 2) # Span 2 columns
 
         main_layout.addWidget(general_group)
 
         # --- Training Settings ---
-        training_group = QGroupBox("Training Settings")
+        training_group = QGroupBox(self.tr("Training Settings"))
         training_layout = QGridLayout(training_group)
 
-        training_layout.addWidget(QLabel("Model Author Name:"), 0, 0)
+        training_layout.addWidget(QLabel(self.tr("Model Author Name:")), 0, 0)
         self.author_edit = QLineEdit()
-        self.author_edit.setPlaceholderText("Name to embed in trained models")
+        self.author_edit.setPlaceholderText(self.tr("Name to embed in trained models"))
         training_layout.addWidget(self.author_edit, 0, 1)
 
         main_layout.addWidget(training_group)
@@ -69,11 +69,11 @@ class SettingsTab(QWidget):
         action_layout = QHBoxLayout(action_group)
         action_layout.setContentsMargins(0,10,0,0)
 
-        self.save_button = QPushButton("Save Settings")
-        self.save_button.setToolTip("Save the current settings. A restart is required for some changes (Theme, Language).")
+        self.save_button = QPushButton(self.tr("Save Settings"))
+        self.save_button.setToolTip(self.tr("Save the current settings. A restart is required for some changes (Theme, Language)."))
         self.save_button.clicked.connect(self.save_settings_and_prompt_restart)
         action_layout.addWidget(self.save_button)
-        
+
         # TODO: Add a dedicated Restart button if feasible, otherwise remove '& Restart' from save button text
 
         main_layout.addWidget(action_group)
@@ -108,16 +108,16 @@ class SettingsTab(QWidget):
 
         except FileNotFoundError:
             print(f"Warning: Theme list file not found at {THEME_LIST_PATH}")
-            self.theme_combo.addItem("Error loading themes")
+            self.theme_combo.addItem(self.tr("Error loading themes"))
         except Exception as e:
             print(f"Error populating themes: {e}")
-            self.theme_combo.addItem("Error loading themes")
+            self.theme_combo.addItem(self.tr("Error loading themes"))
 
     def populate_languages(self):
         """Scans language directory and populates the dropdown."""
         self.language_combo.clear()
         self.available_langs = []
-        self.language_combo.addItem("Auto Detect", userData="auto")
+        self.language_combo.addItem(self.tr("Auto Detect"), userData="auto")
         try:
             lang_files = glob.glob(os.path.join(LANG_DIR, "*.json"))
             for lang_file in sorted(lang_files):
@@ -128,7 +128,7 @@ class SettingsTab(QWidget):
                 self.language_combo.addItem(display_name, userData=lang_code)
         except Exception as e:
             print(f"Error populating languages: {e}")
-            self.language_combo.addItem("Error loading languages")
+            self.language_combo.addItem(self.tr("Error loading languages"))
 
 
     def load_settings(self):
@@ -184,7 +184,7 @@ class SettingsTab(QWidget):
             self.author_edit.setText("")
         except Exception as e:
             print(f"Error loading settings: {e}")
-            QMessageBox.warning(self, "Load Settings Error", f"Could not load settings:\n{e}")
+            QMessageBox.warning(self, self.tr("Load Settings Error"), self.tr("Could not load settings:\n{0}").format(e))
 
     def save_settings(self):
         """Save current UI settings to config.json"""
@@ -227,13 +227,13 @@ class SettingsTab(QWidget):
             return True
         except Exception as e:
             print(f"Error saving settings: {e}")
-            QMessageBox.critical(self, "Save Settings Error", f"Could not save settings:\n{e}")
+            QMessageBox.critical(self, self.tr("Save Settings Error"), self.tr("Could not save settings:\n{0}").format(e))
             return False
 
     def save_settings_and_prompt_restart(self):
         """Saves settings and informs the user a restart is needed."""
         if self.save_settings():
-            QMessageBox.information(self, "Settings Saved", 
-                                    "Settings have been saved successfully.\n"
-                                    "Please restart Applio for changes like Theme or Language to take effect.")
+            QMessageBox.information(self, self.tr("Settings Saved"),
+                                    self.tr("Settings have been saved successfully.\n"
+                                            "Please restart Applio for changes like Theme or Language to take effect."))
             # We don't attempt an automatic restart here.
