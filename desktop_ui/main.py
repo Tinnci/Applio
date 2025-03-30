@@ -57,10 +57,13 @@ def load_and_install_translator(app: QApplication):
         if os.path.exists(config_path):
             with open(config_path, 'r', encoding='utf-8') as f:
                 config_data = json.load(f)
-                # Assuming the key is 'language' in the config file (e.g., "en_US", "zh_CN")
-                lang_code = config_data.get("language", default_lang)
+                lang_settings = config_data.get("lang", {})
+                if lang_settings.get("override", False):
+                    lang_code = lang_settings.get("selected_lang", default_lang)
+                # If override is false or lang key doesn't exist, lang_code remains default_lang
         else:
             print(f"Warning: Config file not found at {config_path}. Using default language.", file=sys.stderr)
+            # lang_code remains default_lang
 
         # Load Qt base translations
         qt_lang_code = lang_code.split('_')[0] # Qt uses language code like 'qt_zh'

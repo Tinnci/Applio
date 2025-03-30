@@ -6,78 +6,78 @@
     <message>
       <location filename="..\tabs\download_tab.py" line="133" />
       <source>Install Model by File Drop</source>
-      <translation type="unfinished" />
+      <translation>拖放文件安装模型</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="266" />
       <location filename="..\tabs\download_tab.py" line="140" />
       <source>Status: Ready to accept files</source>
-      <translation type="unfinished" />
+      <translation>状态：准备接受文件</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="146" />
       <source>Download Pretrained Models</source>
-      <translation type="unfinished" />
+      <translation>下载预训练模型</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="150" />
       <source>(Pretrained model browser/list will go here)</source>
-      <translation type="unfinished" />
+      <translation>（预训练模型浏览器/列表将在此处显示）</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="156" />
       <source>Download Selected Pretrained Model</source>
-      <translation type="unfinished" />
+      <translation>下载选定的预训练模型</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="217" />
       <source>Processing dropped files...</source>
-      <translation type="unfinished" />
+      <translation>正在处理拖放的文件...</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="228" />
       <source>Error creating logs directory: {0}</source>
-      <translation type="unfinished" />
+      <translation>创建日志目录时出错：{0}</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="229" />
       <source>Error: Could not create logs directory.</source>
-      <translation type="unfinished" />
+      <translation>错误：无法创建日志目录。</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="238" />
       <source>Skipped '{0}': Invalid file type.</source>
-      <translation type="unfinished" />
+      <translation>已跳过“{0}”：无效的文件类型。</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="243" />
       <source>Skipped '{0}': ZIP installation not yet implemented.</source>
-      <translation type="unfinished" />
+      <translation>已跳过“{0}”：ZIP 安装尚未实现。</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="257" />
       <source>Error installing '{0}': {1}</source>
-      <translation type="unfinished" />
+      <translation>安装“{0}”时出错：{1}</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="259" />
       <source>Finished processing drop. Installed {0} file(s).</source>
-      <translation type="unfinished" />
+      <translation>拖放处理完成。已安装 {0} 个文件。</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="261" />
       <source>Errors encountered:</source>
-      <translation type="unfinished" />
+      <translation>遇到错误：</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="262" />
       <source>Drop Installation Issues</source>
-      <translation type="unfinished" />
+      <translation>拖放安装问题</translation>
     </message>
     <message>
       <location filename="..\tabs\download_tab.py" line="264" />
       <source>Drop Installation Complete</source>
-      <translation type="unfinished" />
+      <translation>拖放安装完成</translation>
     </message>
   </context>
   <context>
@@ -85,7 +85,7 @@
     <message>
       <location filename="..\tabs\download_tab.py" line="67" />
       <source>Drop .pth, .index, or .zip files here</source>
-      <translation type="unfinished" />
+      <translation>在此处拖放 .pth、.index 或 .zip 文件</translation>
     </message>
   </context>
   <context>
@@ -94,19 +94,19 @@
       <location filename="..\tabs\inference_tab.py" line="353" />
       <location filename="..\tabs\inference_tab.py" line="213" />
       <source>Presets</source>
-      <translation type="unfinished" />
+      <translation>预设</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="355" />
       <location filename="..\tabs\inference_tab.py" line="215" />
       <source>Load Preset:</source>
-      <translation type="unfinished" />
+      <translation>加载预设：</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="357" />
       <location filename="..\tabs\inference_tab.py" line="217" />
       <source>Load</source>
-      <translation type="unfinished" />
+      <translation>加载</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="358" />
@@ -116,25 +116,25 @@
       <location filename="..\tabs\inference_tab.py" line="266" />
       <location filename="..\tabs\inference_tab.py" line="218" />
       <source>Refresh</source>
-      <translation type="unfinished" />
+      <translation>刷新</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="359" />
       <location filename="..\tabs\inference_tab.py" line="219" />
       <source>Save Preset As:</source>
-      <translation type="unfinished" />
+      <translation>预设另存为：</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="360" />
       <location filename="..\tabs\inference_tab.py" line="220" />
       <source>Enter preset name</source>
-      <translation type="unfinished" />
+      <translation>输入预设名称</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="361" />
       <location filename="..\tabs\inference_tab.py" line="221" />
       <source>Save</source>
-      <translation type="unfinished" />
+      <translation>保存</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="343" />
@@ -142,151 +142,151 @@
       <location filename="..\tabs\inference_tab.py" line="279" />
       <location filename="..\tabs\inference_tab.py" line="263" />
       <source>Post-Process Effects</source>
-      <translation type="unfinished" />
+      <translation>后处理效果</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="328" />
       <location filename="..\tabs\inference_tab.py" line="264" />
       <source>Formant Preset:</source>
-      <translation type="unfinished" />
+      <translation>共振峰预设：</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="332" />
       <location filename="..\tabs\inference_tab.py" line="268" />
       <source>Quefrency:</source>
-      <translation type="unfinished" />
+      <translation>倒谱频率：</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="335" />
       <location filename="..\tabs\inference_tab.py" line="271" />
       <source>Timbre:</source>
-      <translation type="unfinished" />
+      <translation>音色：</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="338" />
       <location filename="..\tabs\inference_tab.py" line="274" />
       <source>Embedder Model:</source>
-      <translation type="unfinished" />
+      <translation>嵌入模型：</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="339" />
       <location filename="..\tabs\inference_tab.py" line="275" />
       <source>Custom Embedder</source>
-      <translation type="unfinished" />
+      <translation>自定义嵌入器</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="339" />
       <location filename="..\tabs\inference_tab.py" line="275" />
       <source>Select Custom Embedder:</source>
-      <translation type="unfinished" />
+      <translation>选择自定义嵌入器：</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="276" />
       <source>F0 File (Optional):</source>
-      <translation type="unfinished" />
+      <translation>F0 文件（可选）：</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="276" />
       <source>Path to .f0 file</source>
-      <translation type="unfinished" />
+      <translation>.f0 文件路径</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="340" />
       <location filename="..\tabs\inference_tab.py" line="276" />
       <source>Browse...</source>
-      <translation type="unfinished" />
+      <translation>浏览...</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="340" />
       <source>F0 File Folder (Optional):</source>
-      <translation type="unfinished" />
+      <translation>F0 文件文件夹（可选）：</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="340" />
       <source>Path to folder containing .f0 files (optional)</source>
-      <translation type="unfinished" />
+      <translation>包含 .f0 文件的文件夹路径（可选）</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="805" />
       <location filename="..\tabs\inference_tab.py" line="783" />
       <source>Select a preset...</source>
-      <translation type="unfinished" />
+      <translation>选择一个预设...</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="805" />
       <location filename="..\tabs\inference_tab.py" line="791" />
       <source>No presets found</source>
-      <translation type="unfinished" />
+      <translation>未找到预设</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="805" />
       <location filename="..\tabs\inference_tab.py" line="795" />
       <source>Error loading presets</source>
-      <translation type="unfinished" />
+      <translation>加载预设时出错</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="867" />
       <location filename="..\tabs\inference_tab.py" line="865" />
       <location filename="..\tabs\inference_tab.py" line="810" />
       <source>Load Error</source>
-      <translation type="unfinished" />
+      <translation>加载错误</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="810" />
       <source>Preset file not found: {0}</source>
-      <translation type="unfinished" />
+      <translation>未找到预设文件：{0}</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="862" />
       <source>Preset '{0}' loaded.</source>
-      <translation type="unfinished" />
+      <translation>预设“{0}”已加载。</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="865" />
       <source>Failed to decode preset file: {0}</source>
-      <translation type="unfinished" />
+      <translation>解码预设文件失败：{0}</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="867" />
       <source>Error applying preset settings: {0}</source>
-      <translation type="unfinished" />
+      <translation>应用预设设置时出错：{0}</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="951" />
       <location filename="..\tabs\inference_tab.py" line="885" />
       <location filename="..\tabs\inference_tab.py" line="880" />
       <source>Save Error</source>
-      <translation type="unfinished" />
+      <translation>保存错误</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="880" />
       <source>Please enter a name for the preset.</source>
-      <translation type="unfinished" />
+      <translation>请输入预设名称。</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="885" />
       <source>Preset name can only contain letters, numbers, underscores, and hyphens.</source>
-      <translation type="unfinished" />
+      <translation>预设名称只能包含字母、数字、下划线和连字符。</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="891" />
       <source>Overwrite Preset</source>
-      <translation type="unfinished" />
+      <translation>覆盖预设</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="892" />
       <source>Preset '{0}' already exists. Overwrite?</source>
-      <translation type="unfinished" />
+      <translation>预设“{0}”已存在。是否覆盖？</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="942" />
       <source>Preset '{0}' saved.</source>
-      <translation type="unfinished" />
+      <translation>预设“{0}”已保存。</translation>
     </message>
     <message>
       <location filename="..\tabs\inference_tab.py" line="951" />
       <source>Error saving preset: {0}</source>
-      <translation type="unfinished" />
+      <translation>保存预设时出错：{0}</translation>
     </message>
   </context>
   <context>
@@ -439,272 +439,272 @@ Please restart Applio for changes like Theme or Language to take effect.</source
     <message>
       <location filename="..\tabs\tts_tab.py" line="126" />
       <source>Text-to-Speech Settings</source>
-      <translation type="unfinished" />
+      <translation>文本转语音设置</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="129" />
       <source>Text to Synthesize:</source>
-      <translation type="unfinished" />
+      <translation>要合成的文本：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="131" />
       <source>Enter text here...</source>
-      <translation type="unfinished" />
+      <translation>在此输入文本...</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="135" />
       <source>TTS Voice:</source>
-      <translation type="unfinished" />
+      <translation>TTS 语音：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="147" />
       <location filename="..\tabs\tts_tab.py" line="142" />
       <source>TTS Rate ({0}):</source>
-      <translation type="unfinished" />
+      <translation>TTS 速率 ({0}):</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="153" />
       <source>RVC Voice Conversion Settings</source>
-      <translation type="unfinished" />
+      <translation>RVC 声音转换设置</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="159" />
       <source>RVC Voice Model:</source>
-      <translation type="unfinished" />
+      <translation>RVC 声音模型：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="163" />
       <source>RVC Index File:</source>
-      <translation type="unfinished" />
+      <translation>RVC 索引文件：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="167" />
       <source>Refresh Models</source>
-      <translation type="unfinished" />
+      <translation>刷新模型</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="171" />
       <source>Unload Model</source>
-      <translation type="unfinished" />
+      <translation>卸载模型</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="198" />
       <source>RVC F0 Method:</source>
-      <translation type="unfinished" />
+      <translation>RVC F0 方法：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="202" />
       <source>RVC Speaker ID:</source>
-      <translation type="unfinished" />
+      <translation>RVC 说话人 ID：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="208" />
       <source>Split Audio</source>
-      <translation type="unfinished" />
+      <translation>分割音频</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="209" />
       <source>Autotune</source>
-      <translation type="unfinished" />
+      <translation>自动调谐</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="210" />
       <source>Clean Audio</source>
-      <translation type="unfinished" />
+      <translation>清理音频</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="211" />
       <source>Formant Shift</source>
-      <translation type="unfinished" />
+      <translation>共振峰偏移</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="214" />
       <source>Autotune Strength:</source>
-      <translation type="unfinished" />
+      <translation>自动调谐强度：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="218" />
       <source>Clean Strength:</source>
-      <translation type="unfinished" />
+      <translation>清理强度：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="223" />
       <source>Quefrency:</source>
-      <translation type="unfinished" />
+      <translation>倒谱频率：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="227" />
       <source>Timbre:</source>
-      <translation type="unfinished" />
+      <translation>音色：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="232" />
       <source>Embedder Model:</source>
-      <translation type="unfinished" />
+      <translation>嵌入模型：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="237" />
       <source>Export Format:</source>
-      <translation type="unfinished" />
+      <translation>导出格式：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="241" />
       <source>F0 File (Optional):</source>
-      <translation type="unfinished" />
+      <translation>F0 文件（可选）：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="242" />
       <source>Path to .f0 file</source>
-      <translation type="unfinished" />
+      <translation>.f0 文件路径</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="254" />
       <location filename="..\tabs\tts_tab.py" line="243" />
       <source>Browse...</source>
-      <translation type="unfinished" />
+      <translation>浏览...</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="248" />
       <source>Output</source>
-      <translation type="unfinished" />
+      <translation>输出</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="250" />
       <source>Output Path (RVC):</source>
-      <translation type="unfinished" />
+      <translation>输出路径 (RVC)：</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="252" />
       <source>Select final output file path</source>
-      <translation type="unfinished" />
+      <translation>选择最终输出文件路径</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="270" />
       <source>Synthesize and Convert</source>
-      <translation type="unfinished" />
+      <translation>合成和转换</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="274" />
       <source>Status: Idle</source>
-      <translation type="unfinished" />
+      <translation>状态：空闲</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="311" />
       <source>All Files (*)</source>
-      <translation type="unfinished" />
+      <translation>所有文件 (*)</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="313" />
       <source>Select RVC Output Path</source>
-      <translation type="unfinished" />
+      <translation>选择 RVC 输出路径</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="322" />
       <source>Process Running</source>
-      <translation type="unfinished" />
+      <translation>进程运行中</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="322" />
       <source>A TTS/RVC process is already running.</source>
-      <translation type="unfinished" />
+      <translation>一个 TTS/RVC 进程已在运行。</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="360" />
       <source>Input Error</source>
-      <translation type="unfinished" />
+      <translation>输入错误</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="360" />
       <source>Please enter text to synthesize.</source>
-      <translation type="unfinished" />
+      <translation>请输入要合成的文本。</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="363" />
       <source>Output Error</source>
-      <translation type="unfinished" />
+      <translation>输出错误</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="363" />
       <source>Please specify an output file path.</source>
-      <translation type="unfinished" />
+      <translation>请指定输出文件路径。</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="366" />
       <source>Model Error</source>
-      <translation type="unfinished" />
+      <translation>模型错误</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="366" />
       <source>Please select a valid RVC voice model file.</source>
-      <translation type="unfinished" />
+      <translation>请选择有效的 RVC 声音模型文件。</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="370" />
       <source>Warning: Selected index file not found: {0}</source>
-      <translation type="unfinished" />
+      <translation>警告：未找到选定的索引文件：{0}</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="375" />
       <source>Synthesizing...</source>
-      <translation type="unfinished" />
+      <translation>正在合成...</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="394" />
       <source>Select F0 File</source>
-      <translation type="unfinished" />
+      <translation>选择 F0 文件</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="394" />
       <source>F0 Files (*.f0);;All Files (*)</source>
-      <translation type="unfinished" />
+      <translation>F0 文件 (*.f0);;所有文件 (*)</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="410" />
       <source>Processing... {0}%</source>
-      <translation type="unfinished" />
+      <translation>处理中... {0}%</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="412" />
       <source>Finishing...</source>
-      <translation type="unfinished" />
+      <translation>正在完成...</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="417" />
       <source>Status: {0}</source>
-      <translation type="unfinished" />
+      <translation>状态：{0}</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="421" />
       <source>Finished: {0}</source>
-      <translation type="unfinished" />
+      <translation>完成：{0}</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="423" />
       <source>Synthesis Complete</source>
-      <translation type="unfinished" />
+      <translation>合成完成</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="423" />
       <source>{0}
 Output saved to:
 {1}</source>
-      <translation type="unfinished" />
+      <translation>{0}\n输出已保存至：\n{1}</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="431" />
       <source>Error occurred</source>
-      <translation type="unfinished" />
+      <translation>发生错误</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="435" />
       <source>Synthesis Error</source>
-      <translation type="unfinished" />
+      <translation>合成错误</translation>
     </message>
     <message>
       <location filename="..\tabs\tts_tab.py" line="435" />
       <source>An error occurred:
 {0}</source>
-      <translation type="unfinished" />
+      <translation>发生错误：\n{0}</translation>
     </message>
   </context>
 </TS>
