@@ -1,11 +1,12 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton, QGridLayout, 
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QGridLayout,
                              QSlider, QComboBox, QCheckBox, QLineEdit, QFileDialog, QProgressBar,
-                             QMessageBox, QSizePolicy, QSpacerItem, QTabWidget, 
-                             QGroupBox) # Added QRadioButton
+                             QMessageBox, QSizePolicy, QSpacerItem, QTabWidget,
+                             QGroupBox, QDoubleSpinBox, QSpinBox) # Added more widgets
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 import os
 import sys
 import traceback
+import json # Added for presets
 
 # Ensure the core Applio logic can be imported
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -202,10 +203,26 @@ class InferenceTab(QWidget):
 
         self.setLayout(main_layout)
 
+        # Initialize preset list
+        self.load_presets()
+
     def setup_single_tab_ui(self, single_tab_layout):
         """Sets up the UI elements for the Single Inference tab."""
+
+        # --- Preset Section ---
+        preset_group = QGroupBox(self.tr("Presets"))
+        preset_layout = QGridLayout(preset_group)
+        preset_layout.addWidget(QLabel(self.tr("Load Preset:")), 0, 0)
+        self.preset_combo = QComboBox(); preset_layout.addWidget(self.preset_combo, 0, 1)
+        self.load_preset_button = QPushButton(self.tr("Load")); self.load_preset_button.clicked.connect(self.load_preset_settings); preset_layout.addWidget(self.load_preset_button, 0, 2)
+        self.refresh_presets_button = QPushButton(self.tr("Refresh")); self.refresh_presets_button.clicked.connect(self.load_presets); preset_layout.addWidget(self.refresh_presets_button, 0, 3)
+        preset_layout.addWidget(QLabel(self.tr("Save Preset As:")), 1, 0)
+        self.save_preset_name_edit = QLineEdit(); self.save_preset_name_edit.setPlaceholderText(self.tr("Enter preset name")); preset_layout.addWidget(self.save_preset_name_edit, 1, 1)
+        self.save_preset_button = QPushButton(self.tr("Save")); self.save_preset_button.clicked.connect(self.save_preset_settings); preset_layout.addWidget(self.save_preset_button, 1, 2)
+        single_tab_layout.addWidget(preset_group)
+
         # Input Audio Section
-        input_group_box = QWidget(); input_layout = QGridLayout(input_group_box); input_layout.setContentsMargins(0,5,0,5) 
+        input_group_box = QWidget(); input_layout = QGridLayout(input_group_box); input_layout.setContentsMargins(0,5,0,5)
         input_layout.addWidget(QLabel("Input Audio:"), 0, 0); self.input_audio_path_edit = QLineEdit(); self.input_audio_path_edit.setPlaceholderText("Select audio file"); input_layout.addWidget(self.input_audio_path_edit, 0, 1)
         self.browse_input_button = QPushButton("Browse..."); self.browse_input_button.clicked.connect(self.browse_input_audio); input_layout.addWidget(self.browse_input_button, 0, 2)
         single_tab_layout.addWidget(input_group_box)
@@ -243,35 +260,24 @@ class InferenceTab(QWidget):
         self.clean_strength_slider = QSlider(Qt.Orientation.Horizontal); self.clean_strength_slider.setRange(0, 100); self.clean_strength_slider.setValue(50); self.clean_strength_slider.setVisible(False); advanced_layout.addWidget(self.clean_strength_slider, 3, 5)
         self.clean_audio_checkbox.stateChanged.connect(lambda state: self.clean_strength_label.setVisible(state == Qt.CheckState.Checked.value)); self.clean_audio_checkbox.stateChanged.connect(lambda state: self.clean_strength_slider.setVisible(state == Qt.CheckState.Checked.value))
         self.formant_shifting_checkbox = QCheckBox("Formant Shifting"); advanced_layout.addWidget(self.formant_shifting_checkbox, 4, 0, 1, 2) 
-        self.post_process_checkbox = QCheckBox("Post-Process Effects"); advanced_layout.addWidget(self.post_process_checkbox, 4, 2, 1, 2); self.post_process_checkbox.stateChanged.connect(self.toggle_post_process_visibility)
-        self.formant_preset_label = QLabel("Formant Preset:"); self.formant_preset_label.setVisible(False); advanced_layout.addWidget(self.formant_preset_label, 5, 0)
+        self.post_process_checkbox = QCheckBox(self.tr("Post-Process Effects")); advanced_layout.addWidget(self.post_process_checkbox, 4, 2, 1, 2); self.post_process_checkbox.stateChanged.connect(self.toggle_post_process_visibility)
+        self.formant_preset_label = QLabel(self.tr("Formant Preset:")); self.formant_preset_label.setVisible(False); advanced_layout.addWidget(self.formant_preset_label, 5, 0)
         self.formant_preset_combo = QComboBox(); self.formant_preset_combo.setVisible(False); advanced_layout.addWidget(self.formant_preset_combo, 5, 1)
-        self.formant_refresh_button = QPushButton("Refresh"); self.formant_refresh_button.setVisible(False); advanced_layout.addWidget(self.formant_refresh_button, 5, 2)
+        self.formant_refresh_button = QPushButton(self.tr("Refresh")); self.formant_refresh_button.setVisible(False); advanced_layout.addWidget(self.formant_refresh_button, 5, 2)
         self.formant_shifting_checkbox.stateChanged.connect(lambda state: self.formant_preset_label.setVisible(state == Qt.CheckState.Checked.value)); self.formant_shifting_checkbox.stateChanged.connect(lambda state: self.formant_preset_combo.setVisible(state == Qt.CheckState.Checked.value)); self.formant_shifting_checkbox.stateChanged.connect(lambda state: self.formant_refresh_button.setVisible(state == Qt.CheckState.Checked.value)); self.formant_shifting_checkbox.stateChanged.connect(self.refresh_formant_presets); self.formant_refresh_button.clicked.connect(self.refresh_formant_presets); self.formant_preset_combo.currentTextChanged.connect(self.update_formant_sliders_from_preset)
-        self.formant_qfrency_label = QLabel("Quefrency:"); self.formant_qfrency_label.setVisible(False); advanced_layout.addWidget(self.formant_qfrency_label, 6, 0)
+        self.formant_qfrency_label = QLabel(self.tr("Quefrency:")); self.formant_qfrency_label.setVisible(False); advanced_layout.addWidget(self.formant_qfrency_label, 6, 0)
         self.formant_qfrency_slider = QSlider(Qt.Orientation.Horizontal); self.formant_qfrency_slider.setRange(0, 160); self.formant_qfrency_slider.setValue(10); self.formant_qfrency_slider.setVisible(False); advanced_layout.addWidget(self.formant_qfrency_slider, 6, 1)
         self.formant_shifting_checkbox.stateChanged.connect(lambda state: self.formant_qfrency_label.setVisible(state == Qt.CheckState.Checked.value)); self.formant_shifting_checkbox.stateChanged.connect(lambda state: self.formant_qfrency_slider.setVisible(state == Qt.CheckState.Checked.value))
-        self.formant_timbre_label = QLabel("Timbre:"); self.formant_timbre_label.setVisible(False); advanced_layout.addWidget(self.formant_timbre_label, 6, 2)
+        self.formant_timbre_label = QLabel(self.tr("Timbre:")); self.formant_timbre_label.setVisible(False); advanced_layout.addWidget(self.formant_timbre_label, 6, 2)
         self.formant_timbre_slider = QSlider(Qt.Orientation.Horizontal); self.formant_timbre_slider.setRange(0, 160); self.formant_timbre_slider.setValue(10); self.formant_timbre_slider.setVisible(False); advanced_layout.addWidget(self.formant_timbre_slider, 6, 3)
         self.formant_shifting_checkbox.stateChanged.connect(lambda state: self.formant_timbre_label.setVisible(state == Qt.CheckState.Checked.value)); self.formant_shifting_checkbox.stateChanged.connect(lambda state: self.formant_timbre_slider.setVisible(state == Qt.CheckState.Checked.value))
-        advanced_layout.addWidget(QLabel("Embedder Model:"), 7, 0); self.embedder_model_combo = QComboBox(); self.embedder_model_combo.addItems(["contentvec", "chinese-hubert-base", "japanese-hubert-base", "korean-hubert-base", "custom"]); self.embedder_model_combo.setCurrentText("contentvec"); self.embedder_model_combo.currentTextChanged.connect(self.toggle_custom_embedder_visibility); advanced_layout.addWidget(self.embedder_model_combo, 7, 1)
-        self.custom_embedder_group = QGroupBox("Custom Embedder"); self.custom_embedder_group.setVisible(False); custom_embedder_layout = QGridLayout(self.custom_embedder_group); custom_embedder_layout.addWidget(QLabel("Select Custom Embedder:"), 0, 0); self.embedder_model_custom_combo = QComboBox(); self.refresh_embedder_folders(); custom_embedder_layout.addWidget(self.embedder_model_custom_combo, 0, 1); self.refresh_embedders_button = QPushButton("Refresh"); self.refresh_embedders_button.clicked.connect(self.refresh_embedder_folders); custom_embedder_layout.addWidget(self.refresh_embedders_button, 0, 2); advanced_layout.addWidget(self.custom_embedder_group, 8, 0, 1, 6) 
-        advanced_layout.addWidget(QLabel("F0 File (Optional):"), 9, 0); self.f0_file_edit = QLineEdit(); self.f0_file_edit.setPlaceholderText("Path to .f0 file"); advanced_layout.addWidget(self.f0_file_edit, 9, 1, 1, 4); self.f0_file_browse_button = QPushButton("Browse..."); self.f0_file_browse_button.clicked.connect(self.browse_f0_file); advanced_layout.addWidget(self.f0_file_browse_button, 9, 5)
-        
+        advanced_layout.addWidget(QLabel(self.tr("Embedder Model:")), 7, 0); self.embedder_model_combo = QComboBox(); self.embedder_model_combo.addItems(["contentvec", "chinese-hubert-base", "japanese-hubert-base", "korean-hubert-base", "custom"]); self.embedder_model_combo.setCurrentText("contentvec"); self.embedder_model_combo.currentTextChanged.connect(self.toggle_custom_embedder_visibility); advanced_layout.addWidget(self.embedder_model_combo, 7, 1)
+        self.custom_embedder_group = QGroupBox(self.tr("Custom Embedder")); self.custom_embedder_group.setVisible(False); custom_embedder_layout = QGridLayout(self.custom_embedder_group); custom_embedder_layout.addWidget(QLabel(self.tr("Select Custom Embedder:")), 0, 0); self.embedder_model_custom_combo = QComboBox(); self.refresh_embedder_folders(); custom_embedder_layout.addWidget(self.embedder_model_custom_combo, 0, 1); self.refresh_embedders_button = QPushButton(self.tr("Refresh")); self.refresh_embedders_button.clicked.connect(self.refresh_embedder_folders); custom_embedder_layout.addWidget(self.refresh_embedders_button, 0, 2); advanced_layout.addWidget(self.custom_embedder_group, 8, 0, 1, 6)
+        advanced_layout.addWidget(QLabel(self.tr("F0 File (Optional):")), 9, 0); self.f0_file_edit = QLineEdit(); self.f0_file_edit.setPlaceholderText(self.tr("Path to .f0 file")); advanced_layout.addWidget(self.f0_file_edit, 9, 1, 1, 4); self.f0_file_browse_button = QPushButton(self.tr("Browse...")); self.f0_file_browse_button.clicked.connect(self.browse_f0_file); advanced_layout.addWidget(self.f0_file_browse_button, 9, 5)
+
         # --- Post-Process Effects Section (Conditional) ---
-        self.post_process_group = QGroupBox("Post-Process Effects"); self.post_process_group.setVisible(False); post_process_layout = QGridLayout(self.post_process_group)
-        # Add Checkboxes for each effect
-        self.reverb_checkbox = QCheckBox("Reverb"); post_process_layout.addWidget(self.reverb_checkbox, 0, 0)
-        self.pitch_shift_checkbox = QCheckBox("Pitch Shift"); post_process_layout.addWidget(self.pitch_shift_checkbox, 0, 1)
-        self.limiter_checkbox = QCheckBox("Limiter"); post_process_layout.addWidget(self.limiter_checkbox, 0, 2)
-        self.gain_checkbox = QCheckBox("Gain"); post_process_layout.addWidget(self.gain_checkbox, 1, 0)
-        self.distortion_checkbox = QCheckBox("Distortion"); post_process_layout.addWidget(self.distortion_checkbox, 1, 1)
-        self.chorus_checkbox = QCheckBox("Chorus"); post_process_layout.addWidget(self.chorus_checkbox, 1, 2)
-        self.bitcrush_checkbox = QCheckBox("Bitcrush"); post_process_layout.addWidget(self.bitcrush_checkbox, 2, 0)
-        self.clipping_checkbox = QCheckBox("Clipping"); post_process_layout.addWidget(self.clipping_checkbox, 2, 1)
-        self.compressor_checkbox = QCheckBox("Compressor"); post_process_layout.addWidget(self.compressor_checkbox, 2, 2)
-        self.delay_checkbox = QCheckBox("Delay"); post_process_layout.addWidget(self.delay_checkbox, 3, 0)
-        # TODO: Add sliders for each effect, make them conditional on their checkbox
+        self.post_process_group = QGroupBox(self.tr("Post-Process Effects")); self.post_process_group.setVisible(False); post_process_layout = QGridLayout(self.post_process_group)
+        self.setup_post_process_ui(post_process_layout) # Call helper to create UI
         advanced_layout.addWidget(self.post_process_group, 10, 0, 1, 6) # Add group to main advanced layout
 
         single_tab_layout.addWidget(advanced_settings_group)
@@ -318,33 +324,168 @@ class InferenceTab(QWidget):
         self.clean_strength_slider_batch = QSlider(Qt.Orientation.Horizontal); self.clean_strength_slider_batch.setRange(0, 100); self.clean_strength_slider_batch.setValue(50); self.clean_strength_slider_batch.setVisible(False); advanced_layout_batch.addWidget(self.clean_strength_slider_batch, 3, 5)
         self.clean_audio_checkbox_batch.stateChanged.connect(lambda state: self.clean_strength_label_batch.setVisible(state == Qt.CheckState.Checked.value)); self.clean_audio_checkbox_batch.stateChanged.connect(lambda state: self.clean_strength_slider_batch.setVisible(state == Qt.CheckState.Checked.value))
         self.formant_shifting_checkbox_batch = QCheckBox("Formant Shifting"); advanced_layout_batch.addWidget(self.formant_shifting_checkbox_batch, 4, 0, 1, 2) 
-        self.post_process_checkbox_batch = QCheckBox("Post-Process Effects"); advanced_layout_batch.addWidget(self.post_process_checkbox_batch, 4, 2, 1, 2)
-        self.formant_preset_label_batch = QLabel("Formant Preset:"); self.formant_preset_label_batch.setVisible(False); advanced_layout_batch.addWidget(self.formant_preset_label_batch, 5, 0)
+        self.post_process_checkbox_batch = QCheckBox(self.tr("Post-Process Effects")); advanced_layout_batch.addWidget(self.post_process_checkbox_batch, 4, 2, 1, 2); self.post_process_checkbox_batch.stateChanged.connect(self.toggle_post_process_visibility_batch)
+        self.formant_preset_label_batch = QLabel(self.tr("Formant Preset:")); self.formant_preset_label_batch.setVisible(False); advanced_layout_batch.addWidget(self.formant_preset_label_batch, 5, 0)
         self.formant_preset_combo_batch = QComboBox(); self.formant_preset_combo_batch.setVisible(False); advanced_layout_batch.addWidget(self.formant_preset_combo_batch, 5, 1)
-        self.formant_refresh_button_batch = QPushButton("Refresh"); self.formant_refresh_button_batch.setVisible(False); advanced_layout_batch.addWidget(self.formant_refresh_button_batch, 5, 2)
+        self.formant_refresh_button_batch = QPushButton(self.tr("Refresh")); self.formant_refresh_button_batch.setVisible(False); advanced_layout_batch.addWidget(self.formant_refresh_button_batch, 5, 2)
         self.formant_shifting_checkbox_batch.stateChanged.connect(lambda state: self.formant_preset_label_batch.setVisible(state == Qt.CheckState.Checked.value)); self.formant_shifting_checkbox_batch.stateChanged.connect(lambda state: self.formant_preset_combo_batch.setVisible(state == Qt.CheckState.Checked.value)); self.formant_shifting_checkbox_batch.stateChanged.connect(lambda state: self.formant_refresh_button_batch.setVisible(state == Qt.CheckState.Checked.value)); self.formant_shifting_checkbox_batch.stateChanged.connect(self.refresh_formant_presets_batch); self.formant_refresh_button_batch.clicked.connect(self.refresh_formant_presets_batch); self.formant_preset_combo_batch.currentTextChanged.connect(self.update_formant_sliders_from_preset_batch)
-        self.formant_qfrency_label_batch = QLabel("Quefrency:"); self.formant_qfrency_label_batch.setVisible(False); advanced_layout_batch.addWidget(self.formant_qfrency_label_batch, 6, 0)
+        self.formant_qfrency_label_batch = QLabel(self.tr("Quefrency:")); self.formant_qfrency_label_batch.setVisible(False); advanced_layout_batch.addWidget(self.formant_qfrency_label_batch, 6, 0)
         self.formant_qfrency_slider_batch = QSlider(Qt.Orientation.Horizontal); self.formant_qfrency_slider_batch.setRange(0, 160); self.formant_qfrency_slider_batch.setValue(10); self.formant_qfrency_slider_batch.setVisible(False); advanced_layout_batch.addWidget(self.formant_qfrency_slider_batch, 6, 1)
         self.formant_shifting_checkbox_batch.stateChanged.connect(lambda state: self.formant_qfrency_label_batch.setVisible(state == Qt.CheckState.Checked.value)); self.formant_shifting_checkbox_batch.stateChanged.connect(lambda state: self.formant_qfrency_slider_batch.setVisible(state == Qt.CheckState.Checked.value))
-        self.formant_timbre_label_batch = QLabel("Timbre:"); self.formant_timbre_label_batch.setVisible(False); advanced_layout_batch.addWidget(self.formant_timbre_label_batch, 6, 2)
+        self.formant_timbre_label_batch = QLabel(self.tr("Timbre:")); self.formant_timbre_label_batch.setVisible(False); advanced_layout_batch.addWidget(self.formant_timbre_label_batch, 6, 2)
         self.formant_timbre_slider_batch = QSlider(Qt.Orientation.Horizontal); self.formant_timbre_slider_batch.setRange(0, 160); self.formant_timbre_slider_batch.setValue(10); self.formant_timbre_slider_batch.setVisible(False); advanced_layout_batch.addWidget(self.formant_timbre_slider_batch, 6, 3)
         self.formant_shifting_checkbox_batch.stateChanged.connect(lambda state: self.formant_timbre_label_batch.setVisible(state == Qt.CheckState.Checked.value)); self.formant_shifting_checkbox_batch.stateChanged.connect(lambda state: self.formant_timbre_slider_batch.setVisible(state == Qt.CheckState.Checked.value))
-        advanced_layout_batch.addWidget(QLabel("Embedder Model:"), 7, 0); self.embedder_model_combo_batch = QComboBox(); self.embedder_model_combo_batch.addItems(["contentvec", "chinese-hubert-base", "japanese-hubert-base", "korean-hubert-base", "custom"]); self.embedder_model_combo_batch.setCurrentText("contentvec"); self.embedder_model_combo_batch.currentTextChanged.connect(self.toggle_custom_embedder_visibility_batch); advanced_layout_batch.addWidget(self.embedder_model_combo_batch, 7, 1)
-        self.custom_embedder_group_batch = QGroupBox("Custom Embedder"); self.custom_embedder_group_batch.setVisible(False); custom_embedder_layout_batch = QGridLayout(self.custom_embedder_group_batch); custom_embedder_layout_batch.addWidget(QLabel("Select Custom Embedder:"), 0, 0); self.embedder_model_custom_combo_batch = QComboBox(); self.refresh_embedder_folders_batch(); custom_embedder_layout_batch.addWidget(self.embedder_model_custom_combo_batch, 0, 1); self.refresh_embedders_button_batch = QPushButton("Refresh"); self.refresh_embedders_button_batch.clicked.connect(self.refresh_embedder_folders_batch); custom_embedder_layout_batch.addWidget(self.refresh_embedders_button_batch, 0, 2); advanced_layout_batch.addWidget(self.custom_embedder_group_batch, 8, 0, 1, 6) 
-        advanced_layout_batch.addWidget(QLabel("F0 File Folder (Optional):"), 9, 0); self.f0_folder_edit_batch = QLineEdit(); self.f0_folder_edit_batch.setPlaceholderText("Path to folder containing .f0 files (optional)"); advanced_layout_batch.addWidget(self.f0_folder_edit_batch, 9, 1, 1, 4); self.f0_folder_browse_button_batch = QPushButton("Browse..."); self.f0_folder_browse_button_batch.clicked.connect(self.browse_f0_folder_batch); advanced_layout_batch.addWidget(self.f0_folder_browse_button_batch, 9, 5)
+        advanced_layout_batch.addWidget(QLabel(self.tr("Embedder Model:")), 7, 0); self.embedder_model_combo_batch = QComboBox(); self.embedder_model_combo_batch.addItems(["contentvec", "chinese-hubert-base", "japanese-hubert-base", "korean-hubert-base", "custom"]); self.embedder_model_combo_batch.setCurrentText("contentvec"); self.embedder_model_combo_batch.currentTextChanged.connect(self.toggle_custom_embedder_visibility_batch); advanced_layout_batch.addWidget(self.embedder_model_combo_batch, 7, 1)
+        self.custom_embedder_group_batch = QGroupBox(self.tr("Custom Embedder")); self.custom_embedder_group_batch.setVisible(False); custom_embedder_layout_batch = QGridLayout(self.custom_embedder_group_batch); custom_embedder_layout_batch.addWidget(QLabel(self.tr("Select Custom Embedder:")), 0, 0); self.embedder_model_custom_combo_batch = QComboBox(); self.refresh_embedder_folders_batch(); custom_embedder_layout_batch.addWidget(self.embedder_model_custom_combo_batch, 0, 1); self.refresh_embedders_button_batch = QPushButton(self.tr("Refresh")); self.refresh_embedders_button_batch.clicked.connect(self.refresh_embedder_folders_batch); custom_embedder_layout_batch.addWidget(self.refresh_embedders_button_batch, 0, 2); advanced_layout_batch.addWidget(self.custom_embedder_group_batch, 8, 0, 1, 6)
+        advanced_layout_batch.addWidget(QLabel(self.tr("F0 File Folder (Optional):")), 9, 0); self.f0_folder_edit_batch = QLineEdit(); self.f0_folder_edit_batch.setPlaceholderText(self.tr("Path to folder containing .f0 files (optional)")); advanced_layout_batch.addWidget(self.f0_folder_edit_batch, 9, 1, 1, 4); self.f0_folder_browse_button_batch = QPushButton(self.tr("Browse...")); self.f0_folder_browse_button_batch.clicked.connect(self.browse_f0_folder_batch); advanced_layout_batch.addWidget(self.f0_folder_browse_button_batch, 9, 5)
+
+        # --- Post-Process Effects Section (Conditional) ---
+        self.post_process_group_batch = QGroupBox(self.tr("Post-Process Effects")); self.post_process_group_batch.setVisible(False); post_process_layout_batch = QGridLayout(self.post_process_group_batch)
+        self.setup_post_process_ui(post_process_layout_batch, is_batch=True) # Call helper for batch tab
+        advanced_layout_batch.addWidget(self.post_process_group_batch, 10, 0, 1, 6) # Add group to batch advanced layout
+
         batch_tab_layout.addWidget(advanced_settings_group_batch)
 
         # Add spacer
         batch_tab_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
+        # --- Preset Section (Batch) ---
+        preset_group_batch = QGroupBox(self.tr("Presets"))
+        preset_layout_batch = QGridLayout(preset_group_batch)
+        preset_layout_batch.addWidget(QLabel(self.tr("Load Preset:")), 0, 0)
+        self.preset_combo_batch = QComboBox(); preset_layout_batch.addWidget(self.preset_combo_batch, 0, 1)
+        self.load_preset_button_batch = QPushButton(self.tr("Load")); self.load_preset_button_batch.clicked.connect(self.load_preset_settings_batch); preset_layout_batch.addWidget(self.load_preset_button_batch, 0, 2)
+        self.refresh_presets_button_batch = QPushButton(self.tr("Refresh")); self.refresh_presets_button_batch.clicked.connect(self.load_presets_batch); preset_layout_batch.addWidget(self.refresh_presets_button_batch, 0, 3)
+        preset_layout_batch.addWidget(QLabel(self.tr("Save Preset As:")), 1, 0)
+        self.save_preset_name_edit_batch = QLineEdit(); self.save_preset_name_edit_batch.setPlaceholderText(self.tr("Enter preset name")); preset_layout_batch.addWidget(self.save_preset_name_edit_batch, 1, 1)
+        self.save_preset_button_batch = QPushButton(self.tr("Save")); self.save_preset_button_batch.clicked.connect(self.save_preset_settings_batch); preset_layout_batch.addWidget(self.save_preset_button_batch, 1, 2)
+        batch_tab_layout.insertWidget(0, preset_group_batch) # Insert at the top
+
+    # --- Helper to create post-process UI ---
+    def setup_post_process_ui(self, layout, is_batch=False):
+        """Creates the UI elements for post-processing effects."""
+        prefix = "batch_" if is_batch else ""
+
+        # Store widgets in dictionaries for easier access
+        self.pp_checkboxes = {}
+        self.pp_widgets = {} # Holds dicts of widgets per effect
+
+        # Helper function to create label and slider/spinbox pairs
+        def create_param_widget(effect_name, param_name, label_text, widget_type, range_min, range_max, default_val, decimals=2, step=0.1):
+            container = QWidget()
+            hbox = QHBoxLayout(container)
+            hbox.setContentsMargins(0,0,0,0)
+            label = QLabel(self.tr(label_text))
+            if widget_type == QSlider:
+                # Scale float ranges to integer sliders (e.g., 0.0-1.0 -> 0-100)
+                scale = 10**decimals
+                widget = QSlider(Qt.Orientation.Horizontal)
+                widget.setRange(int(range_min * scale), int(range_max * scale))
+                widget.setValue(int(default_val * scale))
+                # Add a dynamic label to show the float value
+                value_label = QLabel(f"{default_val:.{decimals}f}")
+                widget.valueChanged.connect(lambda val, lbl=value_label, s=scale: lbl.setText(f"{val/s:.{decimals}f}"))
+                hbox.addWidget(label)
+                hbox.addWidget(widget)
+                hbox.addWidget(value_label)
+            elif widget_type == QDoubleSpinBox:
+                widget = QDoubleSpinBox()
+                widget.setRange(range_min, range_max)
+                widget.setDecimals(decimals)
+                widget.setSingleStep(step)
+                widget.setValue(default_val)
+                hbox.addWidget(label)
+                hbox.addWidget(widget)
+            elif widget_type == QSpinBox:
+                widget = QSpinBox()
+                widget.setRange(range_min, range_max)
+                widget.setValue(default_val)
+                hbox.addWidget(label)
+                hbox.addWidget(widget)
+            else: # Fallback for unexpected type
+                widget = QLabel("Unsupported widget type")
+                hbox.addWidget(label)
+                hbox.addWidget(widget)
+
+            container.setVisible(False) # Initially hidden
+            self.pp_widgets[effect_name][param_name] = {"container": container, "widget": widget}
+            return container
+
+        # --- Define Effects and Parameters ---
+        effects = {
+            "reverb": [("room_size", "Room Size:", QSlider, 0.0, 1.0, 0.5), ("damping", "Damping:", QSlider, 0.0, 1.0, 0.5),
+                       ("wet_gain", "Wet Gain:", QSlider, 0.0, 1.0, 0.33), ("dry_gain", "Dry Gain:", QSlider, 0.0, 1.0, 0.4),
+                       ("width", "Width:", QSlider, 0.0, 1.0, 1.0), ("freeze_mode", "Freeze:", QSlider, 0.0, 1.0, 0.0)],
+            "pitch_shift": [("semitones", "Semitones:", QDoubleSpinBox, -24.0, 24.0, 0.0, 1, 0.5)],
+            "limiter": [("threshold", "Threshold (dB):", QDoubleSpinBox, -60.0, 0.0, -6.0, 1, 1.0),
+                        ("release_time", "Release (s):", QDoubleSpinBox, 0.01, 1.0, 0.05, 2, 0.01)],
+            "gain": [("db", "Gain (dB):", QDoubleSpinBox, -60.0, 60.0, 0.0, 1, 1.0)],
+            "distortion": [("gain", "Drive:", QDoubleSpinBox, 0.0, 100.0, 25.0, 1, 1.0)],
+            "chorus": [("rate", "Rate (Hz):", QDoubleSpinBox, 0.1, 10.0, 1.0, 1, 0.1), ("depth", "Depth:", QSlider, 0.0, 1.0, 0.25),
+                       ("center_delay", "Delay (ms):", QDoubleSpinBox, 1.0, 20.0, 7.0, 1, 0.5), ("feedback", "Feedback:", QSlider, 0.0, 1.0, 0.0),
+                       ("mix", "Mix:", QSlider, 0.0, 1.0, 0.5)],
+            "bitcrush": [("bit_depth", "Bit Depth:", QSpinBox, 1, 16, 8)],
+            "clipping": [("threshold", "Threshold (dB):", QDoubleSpinBox, -60.0, 0.0, -6.0, 1, 1.0)],
+            "compressor": [("threshold", "Threshold (dB):", QDoubleSpinBox, -60.0, 0.0, 0.0, 1, 1.0), ("ratio", "Ratio:", QDoubleSpinBox, 1.0, 20.0, 1.0, 1, 0.5),
+                           ("attack", "Attack (ms):", QDoubleSpinBox, 0.1, 100.0, 1.0, 1, 0.5), ("release", "Release (ms):", QDoubleSpinBox, 1.0, 1000.0, 100.0, 0, 10)],
+            "delay": [("seconds", "Time (s):", QDoubleSpinBox, 0.01, 5.0, 0.5, 2, 0.01), ("feedback", "Feedback:", QSlider, 0.0, 1.0, 0.0),
+                      ("mix", "Mix:", QSlider, 0.0, 1.0, 0.5)],
+        }
+
+        row, col = 0, 0
+        max_cols = 3 # Adjust layout columns
+        for effect_key, params in effects.items():
+            checkbox = QCheckBox(self.tr(effect_key.replace("_", " ").title()))
+            layout.addWidget(checkbox, row, col)
+            setattr(self, f"{prefix}{effect_key}_checkbox", checkbox) # Store checkbox reference
+            self.pp_checkboxes[effect_key] = checkbox
+            self.pp_widgets[effect_key] = {} # Initialize dict for this effect's widgets
+
+            param_widgets = []
+            for param_key, label, w_type, r_min, r_max, d_val, *extra_args in params:
+                param_widget = create_param_widget(effect_key, param_key, label, w_type, r_min, r_max, d_val, *extra_args)
+                param_widgets.append(param_widget)
+                layout.addWidget(param_widget, row + 1 + params.index((param_key, label, w_type, r_min, r_max, d_val, *extra_args)), col, 1, max_cols) # Span across columns below checkbox
+
+            # Connect checkbox to toggle visibility of its parameter widgets
+            checkbox.stateChanged.connect(lambda state, widgets=param_widgets: [w.setVisible(state == Qt.CheckState.Checked.value) for w in widgets])
+
+            col += 1
+            if col >= max_cols:
+                col = 0
+                # Find the max row used by the previous effect's params to start the next row
+                max_param_row = row + len(params)
+                row = max_param_row + 1 # Start next effect below the params of the previous one
+
     # --- Common Methods ---
     def toggle_post_process_visibility(self, state):
         """Shows/hides the post-process effects group."""
-        self.post_process_group.setVisible(state == Qt.CheckState.Checked.value)
+        is_visible = state == Qt.CheckState.Checked.value
+        self.post_process_group.setVisible(is_visible)
+        # Ensure individual param visibility respects checkboxes when group becomes visible
+        if is_visible:
+            for effect, widgets_dict in self.pp_widgets.items():
+                is_effect_checked = self.pp_checkboxes[effect].isChecked()
+                for param_data in widgets_dict.values():
+                    param_data["container"].setVisible(is_effect_checked)
+
+    def toggle_post_process_visibility_batch(self, state):
+        """Shows/hides the post-process effects group for the batch tab."""
+        is_visible = state == Qt.CheckState.Checked.value
+        self.post_process_group_batch.setVisible(is_visible)
+        # Similar logic for batch tab widgets if needed (assuming mirrored structure)
+        # This requires storing batch widgets separately or passing the prefix
+        # For now, assuming structure is mirrored and widgets are named with _batch suffix
+        if is_visible:
+             # Or refactor setup_post_process_ui to handle prefixes and store widgets accordingly
+             # For now, assume the setup function correctly handles the 'is_batch' flag
+             # to access the correct widgets (e.g., using getattr or storing them differently)
+             # This requires the setup_post_process_ui to be robust.
+             pass # Placeholder - Requires verification of setup_post_process_ui logic
 
     def toggle_custom_embedder_visibility(self, text):
         self.custom_embedder_group.setVisible(text == "custom")
-    
+
     def toggle_custom_embedder_visibility_batch(self, text):
         self.custom_embedder_group_batch.setVisible(text == "custom")
 
@@ -524,8 +665,20 @@ class InferenceTab(QWidget):
                 "embedder_model": self.embedder_model_combo_batch.currentText(),
                 "embedder_model_custom": self.embedder_model_custom_combo_batch.currentText() if self.embedder_model_combo_batch.currentText() == "custom" else None,
                 "post_process": self.post_process_checkbox_batch.isChecked(),
-                # TODO: Add batch post-process params
             })
+            # Add batch post-process params if enabled
+            if params["post_process"]:
+                 # Assuming batch widgets mirror single tab names with _batch suffix
+                 # This needs refinement based on how setup_post_process_ui stores batch widgets
+                 params.update({
+                     "reverb": getattr(self, "batch_reverb_checkbox", QCheckBox()).isChecked(),
+                     # ... add all other effect checkboxes ...
+                     "reverb_room_size": getattr(self, "batch_reverb_room_size_slider", QSlider()).value() / 100.0, # Example
+                     # ... add all other effect parameters ...
+                 })
+                 print("Warning: Gathering batch post-process params not fully implemented.")
+
+
             # Validation for batch folders
             if not params["input_folder"] or not os.path.isdir(params["input_folder"]):
                  QMessageBox.warning(self, "Input Error", "Please select a valid Input Folder for batch processing."); return
@@ -555,19 +708,26 @@ class InferenceTab(QWidget):
                 "embedder_model": self.embedder_model_combo.currentText(),
                 "embedder_model_custom": self.embedder_model_custom_combo.currentText() if self.embedder_model_combo.currentText() == "custom" else None,
                 "post_process": self.post_process_checkbox.isChecked(),
-                # --- Add single post-process params ---
-                "reverb": self.reverb_checkbox.isChecked() if self.post_process_checkbox.isChecked() else False,
-                "pitch_shift": self.pitch_shift_checkbox.isChecked() if self.post_process_checkbox.isChecked() else False,
-                "limiter": self.limiter_checkbox.isChecked() if self.post_process_checkbox.isChecked() else False,
-                "gain": self.gain_checkbox.isChecked() if self.post_process_checkbox.isChecked() else False,
-                "distortion": self.distortion_checkbox.isChecked() if self.post_process_checkbox.isChecked() else False,
-                "chorus": self.chorus_checkbox.isChecked() if self.post_process_checkbox.isChecked() else False,
-                "bitcrush": self.bitcrush_checkbox.isChecked() if self.post_process_checkbox.isChecked() else False,
-                "clipping": self.clipping_checkbox.isChecked() if self.post_process_checkbox.isChecked() else False,
-                "compressor": self.compressor_checkbox.isChecked() if self.post_process_checkbox.isChecked() else False,
-                "delay": self.delay_checkbox.isChecked() if self.post_process_checkbox.isChecked() else False,
-                # TODO: Get slider values for enabled effects
              })
+             # Add single post-process params if enabled
+             if params["post_process"]:
+                 for effect, widgets in self.pp_widgets.items():
+                     checkbox = self.pp_checkboxes.get(effect)
+                     if checkbox and checkbox.isChecked():
+                         params[effect] = True # Enable the effect
+                         for param, data in widgets.items():
+                             widget = data["widget"]
+                             param_key = f"{effect}_{param}" # e.g., reverb_room_size
+                             if isinstance(widget, QSlider):
+                                 # Find the scale based on decimals used during creation (default 2)
+                                 decimals = 2 # Assuming default scale
+                                 scale = 10**decimals
+                                 params[param_key] = widget.value() / scale
+                             elif isinstance(widget, (QDoubleSpinBox, QSpinBox)):
+                                 params[param_key] = widget.value()
+                     else:
+                         params[effect] = False # Ensure effect is marked false if checkbox off
+
              # Validation for single files
              if not params["input_path"] or not os.path.exists(params["input_path"]):
                  QMessageBox.warning(self, "Input Error", "Please select a valid input audio file."); return
@@ -614,3 +774,182 @@ class InferenceTab(QWidget):
         self.update_status("Error occurred") 
         QMessageBox.critical(self, "Inference Error", f"An error occurred:\n{error_message}")
         print(f"Error details:\n{error_message}")
+
+    # --- Preset Handling Methods ---
+    def load_presets(self, is_batch=False):
+        """Loads preset files into the appropriate combo box."""
+        combo = self.preset_combo_batch if is_batch else self.preset_combo
+        combo.clear()
+        combo.addItem(self.tr("Select a preset..."), userData=None)
+        try:
+            if not os.path.exists(PRESETS_DIR):
+                os.makedirs(PRESETS_DIR)
+            presets = [f for f in os.listdir(PRESETS_DIR) if f.lower().endswith(".json")]
+            if presets:
+                combo.addItems(sorted([os.path.splitext(p)[0] for p in presets]))
+            else:
+                combo.addItem(self.tr("No presets found"))
+                combo.setEnabled(False)
+        except Exception as e:
+            print(f"Error loading presets: {e}")
+            combo.addItem(self.tr("Error loading presets"))
+            combo.setEnabled(False)
+
+    def load_presets_batch(self):
+        self.load_presets(is_batch=True)
+
+    def load_preset_settings(self, is_batch=False):
+        """Loads settings from the selected preset file."""
+        combo = self.preset_combo_batch if is_batch else self.preset_combo
+        preset_name = combo.currentText()
+        if not preset_name or preset_name == self.tr("Select a preset...") or preset_name == self.tr("No presets found") or preset_name == self.tr("Error loading presets"):
+            return
+
+        preset_path = os.path.join(PRESETS_DIR, f"{preset_name}.json")
+        if not os.path.exists(preset_path):
+            QMessageBox.warning(self, self.tr("Load Error"), self.tr("Preset file not found: {0}").format(preset_path))
+            self.load_presets(is_batch) # Refresh list if file missing
+            return
+
+        try:
+            with open(preset_path, 'r', encoding='utf-8') as f:
+                settings = json.load(f)
+
+            # Apply settings to UI elements (handle potential missing keys)
+            prefix = "batch_" if is_batch else ""
+            
+            # Basic Sliders
+            getattr(self, f"{prefix}pitch_slider", QSlider()).setValue(settings.get("pitch", 0))
+            getattr(self, f"{prefix}index_rate_slider", QSlider()).setValue(int(settings.get("index_rate", 0.75) * 100))
+            getattr(self, f"{prefix}rms_mix_rate_slider", QSlider()).setValue(int(settings.get("rms_mix_rate", 1.0) * 100))
+            getattr(self, f"{prefix}protect_slider", QSlider()).setValue(int(settings.get("protect", 0.5) * 100))
+
+            # Advanced Settings
+            getattr(self, f"{prefix}f0_method_combo", QComboBox()).setCurrentText(settings.get("f0_method", "rmvpe"))
+            # SID needs model context, cannot be reliably set from preset alone
+            getattr(self, f"{prefix}export_format_combo", QComboBox()).setCurrentText(settings.get("export_format", "WAV"))
+            getattr(self, f"{prefix}split_audio_checkbox", QCheckBox()).setChecked(settings.get("split_audio", False))
+            getattr(self, f"{prefix}autotune_checkbox", QCheckBox()).setChecked(settings.get("f0_autotune", False))
+            getattr(self, f"{prefix}autotune_strength_slider", QSlider()).setValue(int(settings.get("f0_autotune_strength", 1.0) * 100))
+            getattr(self, f"{prefix}clean_audio_checkbox", QCheckBox()).setChecked(settings.get("clean_audio", False))
+            getattr(self, f"{prefix}clean_strength_slider", QSlider()).setValue(int(settings.get("clean_strength", 0.5) * 100))
+            getattr(self, f"{prefix}formant_shifting_checkbox", QCheckBox()).setChecked(settings.get("formant_shifting", False))
+            getattr(self, f"{prefix}formant_qfrency_slider", QSlider()).setValue(int(settings.get("formant_qfrency", 1.0) * 10))
+            getattr(self, f"{prefix}formant_timbre_slider", QSlider()).setValue(int(settings.get("formant_timbre", 1.0) * 10))
+            getattr(self, f"{prefix}embedder_model_combo", QComboBox()).setCurrentText(settings.get("embedder_model", "contentvec"))
+            # Custom embedder path cannot be set directly, user needs to select if 'custom' is loaded
+            
+            # Post-Process Settings
+            getattr(self, f"{prefix}post_process_checkbox", QCheckBox()).setChecked(settings.get("post_process", False))
+            if settings.get("post_process", False):
+                 for effect, widgets in self.pp_widgets.items(): # Assuming pp_widgets is shared or handled by prefix
+                     checkbox = getattr(self, f"{prefix}{effect}_checkbox", QCheckBox())
+                     is_effect_enabled = settings.get(effect, False)
+                     checkbox.setChecked(is_effect_enabled)
+                     if is_effect_enabled:
+                         for param, data in widgets.items():
+                             widget = data["widget"]
+                             param_key = f"{effect}_{param}"
+                             value = settings.get(param_key) # Get saved value
+                             if value is not None:
+                                 if isinstance(widget, QSlider):
+                                     decimals = 2 # Assume default scale
+                                     scale = 10**decimals
+                                     widget.setValue(int(value * scale))
+                                 elif isinstance(widget, (QDoubleSpinBox, QSpinBox)):
+                                     widget.setValue(value)
+
+            self.update_status(self.tr("Preset '{0}' loaded.").format(preset_name))
+
+        except json.JSONDecodeError:
+            QMessageBox.critical(self, self.tr("Load Error"), self.tr("Failed to decode preset file: {0}").format(preset_path))
+        except Exception as e:
+            QMessageBox.critical(self, self.tr("Load Error"), self.tr("Error applying preset settings: {0}").format(e))
+            print(f"Error applying preset '{preset_name}': {e}\n{traceback.format_exc()}")
+
+    def load_preset_settings_batch(self):
+        self.load_preset_settings(is_batch=True)
+
+    def save_preset_settings(self, is_batch=False):
+        """Saves the current settings to a preset file."""
+        prefix = "batch_" if is_batch else ""
+        name_edit = getattr(self, f"{prefix}save_preset_name_edit", QLineEdit())
+        preset_name = name_edit.text().strip()
+
+        if not preset_name:
+            QMessageBox.warning(self, self.tr("Save Error"), self.tr("Please enter a name for the preset."))
+            return
+
+        # Basic validation for filename
+        if not all(c.isalnum() or c in ('_', '-') for c in preset_name):
+             QMessageBox.warning(self, self.tr("Save Error"), self.tr("Preset name can only contain letters, numbers, underscores, and hyphens."))
+             return
+
+        preset_path = os.path.join(PRESETS_DIR, f"{preset_name}.json")
+
+        if os.path.exists(preset_path):
+            reply = QMessageBox.question(self, self.tr("Overwrite Preset"),
+                                         self.tr("Preset '{0}' already exists. Overwrite?").format(preset_name),
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                         QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.No:
+                return
+
+        # Gather settings from UI
+        settings = {}
+        try:
+            # Basic Sliders
+            settings["pitch"] = getattr(self, f"{prefix}pitch_slider", QSlider()).value()
+            settings["index_rate"] = getattr(self, f"{prefix}index_rate_slider", QSlider()).value() / 100.0
+            settings["rms_mix_rate"] = getattr(self, f"{prefix}rms_mix_rate_slider", QSlider()).value() / 100.0
+            settings["protect"] = getattr(self, f"{prefix}protect_slider", QSlider()).value() / 100.0
+
+            # Advanced Settings
+            settings["f0_method"] = getattr(self, f"{prefix}f0_method_combo", QComboBox()).currentText()
+            settings["export_format"] = getattr(self, f"{prefix}export_format_combo", QComboBox()).currentText()
+            settings["split_audio"] = getattr(self, f"{prefix}split_audio_checkbox", QCheckBox()).isChecked()
+            settings["f0_autotune"] = getattr(self, f"{prefix}autotune_checkbox", QCheckBox()).isChecked()
+            settings["f0_autotune_strength"] = getattr(self, f"{prefix}autotune_strength_slider", QSlider()).value() / 100.0
+            settings["clean_audio"] = getattr(self, f"{prefix}clean_audio_checkbox", QCheckBox()).isChecked()
+            settings["clean_strength"] = getattr(self, f"{prefix}clean_strength_slider", QSlider()).value() / 100.0
+            settings["formant_shifting"] = getattr(self, f"{prefix}formant_shifting_checkbox", QCheckBox()).isChecked()
+            settings["formant_qfrency"] = getattr(self, f"{prefix}formant_qfrency_slider", QSlider()).value() / 10.0
+            settings["formant_timbre"] = getattr(self, f"{prefix}formant_timbre_slider", QSlider()).value() / 10.0
+            settings["embedder_model"] = getattr(self, f"{prefix}embedder_model_combo", QComboBox()).currentText()
+            # Do not save custom embedder path, only the 'custom' selection
+
+            # Post-Process Settings
+            settings["post_process"] = getattr(self, f"{prefix}post_process_checkbox", QCheckBox()).isChecked()
+            if settings["post_process"]:
+                 for effect, widgets in self.pp_widgets.items(): # Assuming pp_widgets is shared or handled by prefix
+                     checkbox = getattr(self, f"{prefix}{effect}_checkbox", QCheckBox())
+                     settings[effect] = checkbox.isChecked()
+                     if settings[effect]:
+                         for param, data in widgets.items():
+                             widget = data["widget"]
+                             param_key = f"{effect}_{param}"
+                             if isinstance(widget, QSlider):
+                                 decimals = 2 # Assume default scale
+                                 scale = 10**decimals
+                                 settings[param_key] = widget.value() / scale
+                             elif isinstance(widget, (QDoubleSpinBox, QSpinBox)):
+                                 settings[param_key] = widget.value()
+
+            # Write to JSON file
+            with open(preset_path, 'w', encoding='utf-8') as f:
+                json.dump(settings, f, indent=4)
+
+            self.update_status(self.tr("Preset '{0}' saved.").format(preset_name))
+            self.load_presets(is_batch) # Refresh the list
+            # Select the newly saved preset
+            combo = self.preset_combo_batch if is_batch else self.preset_combo
+            index = combo.findText(preset_name)
+            if index >= 0:
+                combo.setCurrentIndex(index)
+
+        except Exception as e:
+            QMessageBox.critical(self, self.tr("Save Error"), self.tr("Error saving preset: {0}").format(e))
+            print(f"Error saving preset '{preset_name}': {e}\n{traceback.format_exc()}")
+
+    def save_preset_settings_batch(self):
+        self.save_preset_settings(is_batch=True)

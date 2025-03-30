@@ -32,7 +32,8 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Applio Desktop")
+        # Use self.tr() for translatable strings
+        self.setWindowTitle(self.tr("Applio Desktop"))
         self.setGeometry(100, 100, 1000, 700)  # x, y, width, height
 
         self.setup_ui()
@@ -43,29 +44,30 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.tab_widget)
 
         # --- Create and add tabs ---
+        # Use self.tr() for translatable tab names
         self.inference_tab = InferenceTab()
-        self.tab_widget.addTab(self.inference_tab, "Inference")
+        self.tab_widget.addTab(self.inference_tab, self.tr("Inference"))
 
         self.train_tab = TrainTab()
-        self.tab_widget.addTab(self.train_tab, "Training")
+        self.tab_widget.addTab(self.train_tab, self.tr("Training"))
 
         self.tts_tab = TtsTab()
-        self.tab_widget.addTab(self.tts_tab, "TTS")
+        self.tab_widget.addTab(self.tts_tab, self.tr("TTS"))
 
         self.voice_blender_tab = VoiceBlenderTab()
-        self.tab_widget.addTab(self.voice_blender_tab, "Voice Blender")
+        self.tab_widget.addTab(self.voice_blender_tab, self.tr("Voice Blender"))
 
         self.plugins_tab = PluginsTab()
-        self.tab_widget.addTab(self.plugins_tab, "Plugins")
+        self.tab_widget.addTab(self.plugins_tab, self.tr("Plugins"))
 
         self.download_tab = DownloadTab()
-        self.tab_widget.addTab(self.download_tab, "Download")
+        self.tab_widget.addTab(self.download_tab, self.tr("Download"))
 
         self.extra_tab = ExtraTab()
-        self.tab_widget.addTab(self.extra_tab, "Extra")
+        self.tab_widget.addTab(self.extra_tab, self.tr("Extra"))
 
         self.settings_tab = SettingsTab()
-        self.tab_widget.addTab(self.settings_tab, "Settings")
+        self.tab_widget.addTab(self.settings_tab, self.tr("Settings"))
 
         # TODO: Add menu bar, status bar if needed
 

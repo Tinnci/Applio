@@ -1,13 +1,14 @@
 {
   "theme": {
     "file": "Applio.py",
-    "class": "Applio"
+    "class": "Applio",
+    "id": "Applio/Applio"
   },
   "plugins": [],
   "discord_presence": true,
   "lang": {
-    "override": false,
-    "selected_lang": "en_US"
+    "override": true,
+    "selected_lang": "zh_CN"
   },
   "version": "3.2.8-bugfix",
   "model_author": "None"
